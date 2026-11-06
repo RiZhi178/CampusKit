@@ -68,6 +68,14 @@ class GithubReleaseTest {
     }
 
     @Test
+    fun `正式版与同号 tag 相等不误报升级`() {
+        // 1.0.0 起不带阶段后缀：本机与远端都是同号正式版，不能弹窗让用户升级到自己
+        assertEquals(0, compareVersion("1.0.0", "v1.0.0"))
+        assertFalse(isNewerVersion("1.0.0", "v1.0.0"))
+        assertFalse(isNewerVersion("1.0.0", "1.0.0"))
+    }
+
+    @Test
     fun `阶段排序 alpha 小于 beta 小于 rc 小于正式`() {
         assertTrue(isNewerVersion("0.9.14-alpha", "0.9.14-beta"))
         assertTrue(isNewerVersion("0.9.14-beta", "0.9.14-rc"))

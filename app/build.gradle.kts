@@ -54,14 +54,14 @@ android {
         // 版本规则见 README：三位数字，第一位大版本（只在明确要求时改），
         // 第二位小版本（功能 / UI / 底层改动，上限 9），第三位 bug 修复计数（上限 99）。
         // versionCode = 第一位×10⁴ + 第二位×10³ + 第三位，与版本名逐位对应，任何一位增加都单调递增。
-        // 0.9.x 是 1.0 正式版的预备系列：第二位已顶到上限 9，预备阶段的新功能继续走第三位，
-        // 1.0.0 留给正式版本身。
-        val appMajor = 0
-        val appMinor = 9
-        val appPatch = 16
-        val appStage = "alpha"
+        // 0.9.x 是 1.0 正式版的预备系列：第二位已顶到上限 9，预备阶段的新功能继续走第三位。
+        // 1.0.0 是首个正式版，不带阶段后缀；alpha / beta 只在开外测时填回来。
+        val appMajor = 1
+        val appMinor = 0
+        val appPatch = 0
+        val appStage = ""
         versionCode = appMajor * 10_000 + appMinor * 1_000 + appPatch
-        versionName = "$appMajor.$appMinor.$appPatch-$appStage"
+        versionName = "$appMajor.$appMinor.$appPatch" + if (appStage.isEmpty()) "" else "-$appStage"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
