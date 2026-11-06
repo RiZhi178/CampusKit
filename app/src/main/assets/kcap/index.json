@@ -1,0 +1,14 @@
+{
+  "semesters": [
+    {
+      "id": "2026-2027-1",
+      "label": "2026-2027学年 秋季",
+      "termStart": "2026-09-07",
+      "file": "2026-2027-1.timetables.json",
+      "records": 9500,
+      "classes": 1321,
+      "source": "https://jwc.qdu.edu.cn/xxgk/kcap.htm",
+      "generatedAt": "2026-11-06"
+    }
+  ]
+}

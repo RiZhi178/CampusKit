@@ -1,0 +1,46 @@
+# 构建产物与本机状态
+.gradle/
+build/
+.kotlin/
+captures/
+*.apk
+*.aab
+*.dex
+*.class
+
+# 含本机 SDK 绝对路径，换机即失效
+local.properties
+
+# 签名材料一律不进仓库（实际放 ~/.qdu-campus/keystore/，口令在 ~/.gradle/gradle.properties）
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# IDE
+.idea/
+*.iml
+.DS_Store
+*.swp
+
+# 原始抓包与页面样本：含真实学号、教师姓名，脱敏后再以 fixtures 形式入库
+response.md
+*.devtools
+lf.html
+
+# 本机账号密码，仅供离线抓包验证时人工登录使用，绝不入库
+account.txt
+
+# WorkBuddy 本地状态目录
+.workbuddy/
+
+# 若日后在同目录初始化 RN 工程
+node_modules/
+npm-debug.log
+.metro-*
+
+# 本地验证用的临时工程（MaterialKolor 色值对拍），不入库
+scratch/
+
+# 探测文档：接口契约与探测记录、切片实现记录等，首次上传不入库（见推远程准备决定）
+docs/

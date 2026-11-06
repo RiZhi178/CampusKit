@@ -1,0 +1,423 @@
+{
+ "source": "baoxiu.qdu.edu.cn POST /appor/baseset/campus/getCampusByRoleId + /appor/baseset/building/getBuildingByRoleId?type=houqin",
+ "generatedAt": "2026-11-05",
+ "note": "报修系统的校区-楼栋字典，供电费房间码绑定用；只保留学生宿舍形态的楼栋（园字号楼、学生公寓、东平、守义楼），剔除非宿舍条目，口径见 docs/interfaces/baoxiu.md。校方随时可能调整，改版时重新采集。",
+ "campuses": [
+  {
+   "campusId": "3f5f060fbf73b7719716c3cd46230481",
+   "campus": "浮山校区东院",
+   "buildings": [
+    {
+     "id": "6cbb95d69b3020103924d521e4d8fd64",
+     "name": "泓园1号"
+    },
+    {
+     "id": "0a9980fd6c25579d456583d73ad5efad",
+     "name": "泓园2号"
+    },
+    {
+     "id": "5ed79e0a078255f14d780c9fa0418b89",
+     "name": "泓园3号"
+    },
+    {
+     "id": "9b7dc341c3bf7ea4e384917a524c3f7b",
+     "name": "泓园4号"
+    },
+    {
+     "id": "a048e3e6591d0a718d04047f9910af2a",
+     "name": "泓园5号"
+    },
+    {
+     "id": "358320ab1a7dd2ff9e5fe2821f7c1f36",
+     "name": "泓园6号"
+    },
+    {
+     "id": "89d40d6fac893a8f00ab428a670456d2",
+     "name": "泓园7号"
+    },
+    {
+     "id": "26b85896a3417a48a04c97d641f0dd3b",
+     "name": "泓园8号楼"
+    },
+    {
+     "id": "0c410c1e7329e3d84bd3a10eda525437",
+     "name": "泓园9号楼"
+    },
+    {
+     "id": "56fea6dd20838935d0fcd0b1926e6ab1",
+     "name": "泓园10楼"
+    },
+    {
+     "id": "396b846975d24a1a33e421fdc6a5323a",
+     "name": "泓园11号楼"
+    },
+    {
+     "id": "5800d74e3e1bcad0387b3942a30a7b32",
+     "name": "沁园1号"
+    },
+    {
+     "id": "7f2b69785bd486430463d9462df0fe7d",
+     "name": "沁园2号"
+    },
+    {
+     "id": "ea0b0ff1a1d9f92479cacc74d1e7963b",
+     "name": "沁园3号"
+    },
+    {
+     "id": "983765fc0b484aa810c75b39ecd54a6a",
+     "name": "沁园4号"
+    },
+    {
+     "id": "9e352218f8204c18c40107e662e5e081",
+     "name": "沁园5号"
+    },
+    {
+     "id": "11b8c4c6136971c8ad6a623d8e0da1f4",
+     "name": "沁园6号"
+    },
+    {
+     "id": "5c89d2dee17d8ade42c336ff9ae79f81",
+     "name": "沁园7号"
+    },
+    {
+     "id": "69bd51f64786fc72441370a480d57c2d",
+     "name": "沁园8号"
+    },
+    {
+     "id": "418d3844330f28e1f5a2030ed915e748",
+     "name": "沁园9号"
+    },
+    {
+     "id": "0a81101f9affd00c015dd0d48ed2c12a",
+     "name": "沁园11号"
+    },
+    {
+     "id": "79a93dd31d99df45b26959bcb6a84174",
+     "name": "沁园10号"
+    },
+    {
+     "id": "5ac72e1030284b000678ecf8d76e3fb9",
+     "name": "沁园12号"
+    },
+    {
+     "id": "25c628d8cea190702727eba1f1b30b08",
+     "name": "沁园13号"
+    },
+    {
+     "id": "7094c0ec72b211c976e4c17b6b2550c4",
+     "name": "沁园14号"
+    },
+    {
+     "id": "cf90c0685c3fb48cb713a53613355c53",
+     "name": "沁园15号"
+    },
+    {
+     "id": "a94810c7358bc84240aafd8721531427",
+     "name": "沁园16号"
+    },
+    {
+     "id": "79586ee11905e5ce0d9928e1a8f778fe",
+     "name": "滢园1号"
+    },
+    {
+     "id": "de3228c33cf8a184aa684ba86f4ef290",
+     "name": "滢园2号"
+    },
+    {
+     "id": "b44fe6ea6633b19e9f7626791e9979d0",
+     "name": "滢园3号"
+    },
+    {
+     "id": "23da768717c0eb8fef4deda6a87d52e5",
+     "name": "滢园4号"
+    },
+    {
+     "id": "959e2e4c379432957e2af28f2753b7c6",
+     "name": "滢园5号"
+    },
+    {
+     "id": "5f628af473cb613e710a395ee7456e3a",
+     "name": "滢园6号"
+    },
+    {
+     "id": "39344055bb7738572bc2d147b1cc5eb7",
+     "name": "滢园7号"
+    },
+    {
+     "id": "c830333200f6cc169ebf1a176be77f26",
+     "name": "滢园8号"
+    },
+    {
+     "id": "6345454bf7df325088a27da906931f56",
+     "name": "滢园9号"
+    },
+    {
+     "id": "88ffaf27f4bcc988522455adb21b8ced",
+     "name": "滢园10号"
+    },
+    {
+     "id": "02c5d96c38a0efbfc2d7dec028e822ef",
+     "name": "滢园11号"
+    },
+    {
+     "id": "59a7e1012c9286610aca47a3386e9436",
+     "name": "滢园12号"
+    },
+    {
+     "id": "2b1ea92e1230fad1e0657995d3b87b95",
+     "name": "滢园13号"
+    },
+    {
+     "id": "e75214f7611a474089ec45cda8a27052",
+     "name": "滢园14号"
+    },
+    {
+     "id": "624b1b69cd62b3974c88a60e61db0c30",
+     "name": "东平1号"
+    },
+    {
+     "id": "63b60c3d6131fd5381dec3baf429b2da",
+     "name": "东平2号"
+    },
+    {
+     "id": "e710bff24e6d276efb4909277fcd7fda",
+     "name": "东平3号"
+    },
+    {
+     "id": "07ec427f85e0eb16265b76340adc1680",
+     "name": "东平4号"
+    }
+   ]
+  },
+  {
+   "campusId": "57cca236cc9c5a4c41d60d3d3928abf4",
+   "campus": "浮山公寓",
+   "buildings": [
+    {
+     "id": "f52685394f54936565f56707164bb3c1",
+     "name": "学生公寓1号楼"
+    },
+    {
+     "id": "45705fb507ff49e3c8ae14b443c7f0ab",
+     "name": "学生公寓2号楼"
+    },
+    {
+     "id": "e94d8cb154d84b19e8faebb2cad079e0",
+     "name": "学生公寓3号楼"
+    }
+   ]
+  },
+  {
+   "campusId": "7042b43789cfb7d2fcfd21bfc0373f42",
+   "campus": "浮山校区西院",
+   "buildings": [
+    {
+     "id": "f62b8b58614e7738b0d5ac94ebeaa46d",
+     "name": "汇园1号"
+    },
+    {
+     "id": "259603f3be519fef8b4253bd25fb20cf",
+     "name": "汇园2号"
+    },
+    {
+     "id": "136a79616999dbb78f48619da95314ac",
+     "name": "汇园3号"
+    },
+    {
+     "id": "e6c84b320f96deddecc1cdf74aa623fc",
+     "name": "汇园4号"
+    },
+    {
+     "id": "d8065b3eb07d330ac30f9ebc1d6b09c9",
+     "name": "汇园5号"
+    },
+    {
+     "id": "59d4901209ed9d93e1b03360f3d028a5",
+     "name": "汇园6号"
+    },
+    {
+     "id": "44b9c69da08bf6455e04245ee1f792d7",
+     "name": "汇园7号"
+    }
+   ]
+  },
+  {
+   "campusId": "8ba5132858c7b8f9d1acedecb58f3d39",
+   "campus": "浮山校区浩园",
+   "buildings": [
+    {
+     "id": "9af4fabc04b0816f36a3987f89681deb",
+     "name": "浩园1号"
+    },
+    {
+     "id": "fda920931f25e5c9378e57a4a0b69fdf",
+     "name": "浩园2号"
+    },
+    {
+     "id": "cb8f634311e3178787214c7050804a33",
+     "name": "浩园3号"
+    },
+    {
+     "id": "2dae5e8e9903b5c082051d2d8d77989b",
+     "name": "浩园4号"
+    },
+    {
+     "id": "a9982eee726cdef49626512ca7a3669c",
+     "name": "浩园7号"
+    },
+    {
+     "id": "a8142491a9599d5156ffbc8dece54582",
+     "name": "浩园12号"
+    },
+    {
+     "id": "b037f289da5fcfb6b561d6fc3d6fb170",
+     "name": "浩园13号"
+    },
+    {
+     "id": "bf2477120049b015674f7ddab88cbf4e",
+     "name": "浩园14号"
+    }
+   ]
+  },
+  {
+   "campusId": "99794f3172b53a1d8f6d3eb3961423ce",
+   "campus": "金家岭校区溆院",
+   "buildings": [
+    {
+     "id": "6c3c53fd43e8d6fb63c6e81ec1a2d229",
+     "name": "溆园1号"
+    },
+    {
+     "id": "6837f2c3f96f1a472035d1552383e4c6",
+     "name": "溆园2号"
+    },
+    {
+     "id": "198f95e6f782cda16c794270acb8b612",
+     "name": "溆园3号"
+    },
+    {
+     "id": "3e00fb4a6e808f804ce883265f55d4bb",
+     "name": "溆园4号"
+    },
+    {
+     "id": "5daedf3c1eacf8acf05720de3eff3b27",
+     "name": "溆园5号"
+    },
+    {
+     "id": "5cf61a4d9c4b0ac243f9df6dccd6a726",
+     "name": "溆园6号"
+    },
+    {
+     "id": "028861bb61fb1df2fd7faa1939ce108c",
+     "name": "溆园7号"
+    },
+    {
+     "id": "c943988a3da623eaf200156be56f9d57",
+     "name": "溆园8号"
+    },
+    {
+     "id": "3cc99f64b670d721bea0b857d0fce017",
+     "name": "守义楼（学生公寓）"
+    }
+   ]
+  },
+  {
+   "campusId": "bb9ac2c189a50e2f2a5e1f2eb5bf0666",
+   "campus": "金家岭校区湉院",
+   "buildings": [
+    {
+     "id": "d79c7ec8e627ce37490db6482dd62881",
+     "name": "湉园1号"
+    },
+    {
+     "id": "ad0da50795215bfc79e178d476c90ba1",
+     "name": "湉园2号"
+    },
+    {
+     "id": "80209c0ae7ae8c098a86acc7b2722cbd",
+     "name": "湉园3号"
+    },
+    {
+     "id": "84ac2662beca264b91ad49cfd4425cf1",
+     "name": "湉园4号"
+    },
+    {
+     "id": "7e77d0ddf8cb2f23721cd1b086dc6c4f",
+     "name": "湉园5号"
+    }
+   ]
+  },
+  {
+   "campusId": "d788d8b06b19e846a5e18b9b23b501fa",
+   "campus": "松山校区",
+   "buildings": [
+    {
+     "id": "089bafcae91f6f05891fb395ffb268b8",
+     "name": "学生公寓1号楼（登州路）"
+    },
+    {
+     "id": "090ae6c3660d50ce93edfa7ea52057c5",
+     "name": "学生公寓2号楼（登州路）"
+    },
+    {
+     "id": "605c853710c7934c2f5ac7b351f5b73a",
+     "name": "学生公寓3号楼（登州路）"
+    }
+   ]
+  },
+  {
+   "campusId": "ee986d7d5d9c394b3a67749bc6bd5fc4",
+   "campus": "浮山校区师范学院",
+   "buildings": [
+    {
+     "id": "1a182789b1f47f9c86ba68b522e1f724",
+     "name": "浏园A座"
+    },
+    {
+     "id": "93a1a407c8cfe7069b8ce947f9839917",
+     "name": "浏园B座"
+    },
+    {
+     "id": "61dd3ba7a80541c8632240b681a7e0e3",
+     "name": "浏园C座"
+    },
+    {
+     "id": "7a40edc94083104d9a9540190c9ea5a9",
+     "name": "浏园D座"
+    },
+    {
+     "id": "6841e88b8805c7bb2bb9d9896c147155",
+     "name": "浏园E座"
+    },
+    {
+     "id": "27ae0475f83064f69051c157acbd585e",
+     "name": "润园1号"
+    },
+    {
+     "id": "dd680d2c8ed18bb386ba04dca9c67d58",
+     "name": "润园2号"
+    },
+    {
+     "id": "729f78d78725aacde0657256b95b116a",
+     "name": "润园3号"
+    },
+    {
+     "id": "c8fb228e3e2f151b24686d0f9cc29f0b",
+     "name": "润园4号"
+    },
+    {
+     "id": "36060aea2bfccc17b59011c37e23b255",
+     "name": "润园5号"
+    },
+    {
+     "id": "e45031076a6fdf0004d3b0a56e4a9d3f",
+     "name": "润园6号"
+    },
+    {
+     "id": "c5fdc8cca76c9e1dbac83790c97702cd",
+     "name": "润园7号"
+    }
+   ]
+  }
+ ]
+}

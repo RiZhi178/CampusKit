@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 默认只允许 HTTPS -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <!-- 办事大厅页面内部或子资源存在 http 请求，与 ZZUPocket 图书馆放行做法一致 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">ehall.qdu.edu.cn</domain>
+    </domain-config>
+    <!-- 图书馆座位与宿舍报修只提供 http，443 无响应；CAS 回跳的 service 也是 http 地址 -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">csyy.qdu.edu.cn</domain>
+        <domain includeSubdomains="true">baoxiu.qdu.edu.cn</domain>
+    </domain-config>
+    <!--
+        报修首次走 OAuth2 时，确认授权那一页会主动跳一跳明文地址：
+        http://authserver.qdu.edu.cn/authserver/oauth2.0/returnCode，
+        它自己再 302 回 https 继续换码（2026-11-05 在真机 WebView 里录到的 Document 请求）。
+        这一跳由站点脚本发起，不经过 shouldOverrideUrlLoading，无法升级成 https；
+        不放行就断在这里，表现是点了「确认授权」后停在空白页。
+        只放行这一个主机、不含子域；本应用自己发起的 authserver 请求（登录页、门禁判定）仍走 https。
+        Cookie 在这一跳会随明文上行一次，与校方站点在普通浏览器里的行为一致。
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">authserver.qdu.edu.cn</domain>
+    </domain-config>
+</network-security-config>

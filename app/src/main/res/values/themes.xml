@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose 绘制全部界面，这里只决定窗口底色与状态栏图标深浅。
+         底色用于冷启动第一帧，必须与 Compose 的明暗一致，否则浅色模式下会先闪一屏深色；
+         windowLightStatusBar 写死 false 会让浅色模式的状态栏图标变白不可见，故深浅两套各给一个值。
+         enableEdgeToEdge() 会覆盖系统栏颜色，这里保留透明声明只为兼容未调用路径。 -->
+    <style name="Theme.QDUCampus" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@android:color/background_light</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+</resources>

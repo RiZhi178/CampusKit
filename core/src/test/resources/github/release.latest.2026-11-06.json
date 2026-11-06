@@ -1,0 +1,22 @@
+{
+  "url": "https://api.github.com/repos/RiZhi178/QDUCampus/releases/2468013",
+  "html_url": "https://github.com/RiZhi178/QDUCampus/releases/tag/v0.9.14",
+  "id": 2468013,
+  "tag_name": "v0.9.14",
+  "target_commitish": "main",
+  "name": "0.9.14-alpha",
+  "body": "图标与真实样本批：应用图标整套更换、引导页圆标、饮水机与洗衣机码样本入库、「我要反馈」预填 Issues。",
+  "draft": false,
+  "prerelease": true,
+  "created_at": "2026-11-06T12:00:00Z",
+  "published_at": "2026-11-06T12:30:00Z",
+  "author": {
+    "login": "RiZhi178"
+  },
+  "assets": [
+    {
+      "name": "app-release.apk",
+      "browser_download_url": "https://github.com/RiZhi178/QDUCampus/releases/download/v0.9.14/app-release.apk"
+    }
+  ]
+}

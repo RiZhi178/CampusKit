@@ -1,0 +1,409 @@
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head><title>
+
+	无标题页
+
+</title><link href="../../../App_Themes/GridPager/GridPager.css" type="text/css" rel="stylesheet" /></head>
+
+<body>
+
+<link href="https://xg.qdu.edu.cn/AppLoadFrame/Theme/css/reference.css" rel="stylesheet" />
+
+<script src="https://xg.qdu.edu.cn/AppLoadFrame/Theme/Scripts/jquery-2.1.1.min.js"></script>
+
+<script src="https://xg.qdu.edu.cn/AppLoadFrame/Theme/Scripts/layer/layer.js"></script>
+
+<script src="https://xg.qdu.edu.cn/AppLoadFrame/Theme/Scripts/public.js"></script>
+
+<script src="../../content/js/laydate/laydate.js"></script>
+
+    <form name="form1" method="post" action="./StuSchoolApply.aspx" onsubmit="javascript:return WebForm_OnSubmit();" id="form1">
+
+<div>
+
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+
+<input type="hidden" name="__LASTFOCUS" id="__LASTFOCUS" value="" />
+
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="__REDACTED__" />
+
+</div>
+
+
+
+<script type="text/javascript">
+
+//<![CDATA[
+
+var theForm = document.forms['form1'];
+
+if (!theForm) {
+
+    theForm = document.form1;
+
+}
+
+function __doPostBack(eventTarget, eventArgument) {
+
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+
+        theForm.__EVENTTARGET.value = eventTarget;
+
+        theForm.__EVENTARGUMENT.value = eventArgument;
+
+        theForm.submit();
+
+    }
+
+}
+
+//]]>
+
+</script>
+
+
+
+
+
+
+
+<script src="/apps/PJPY/WebResource.axd?d=__REDACTED__&amp;t=__REDACTED__" type="text/javascript"></script>
+
+<script type="text/javascript">
+
+//<![CDATA[
+
+function WebForm_OnSubmit() {
+
+if (typeof(ValidatorOnSubmit) == "function" && ValidatorOnSubmit() == false) return false;
+
+return true;
+
+}
+
+//]]>
+
+</script>
+
+
+
+<div>
+
+
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="__REDACTED__" />
+
+	<input type="hidden" name="__VIEWSTATEENCRYPTED" id="__VIEWSTATEENCRYPTED" value="" />
+
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="__REDACTED__" />
+
+</div>
+
+        
+
+
+
+
+
+<div class="documentBody">
+
+    
+
+
+
+    <div class="DivMain">
+
+
+
+<style>
+
+    .button_public.ahref{
+
+       display:inline-block;
+
+       width:96px;
+
+       text-align:center
+
+    }
+
+
+
+</style>
+
+<table class="DivTable" cellpadding="3" cellspacing="1" border="0">
+
+    <tr>
+
+        <td  class="EdtTitleBack">当前批次名称：</td>
+
+        <td class="EdtBack" colspan="3">
+
+            <select name="StuApplyPage1$StuApply1$OrderName" onchange="javascript:setTimeout(&#39;__doPostBack(\&#39;StuApplyPage1$StuApply1$OrderName\&#39;,\&#39;\&#39;)&#39;, 0)" id="StuApplyPage1_StuApply1_OrderName">
+
+	<option selected="selected" value="996e89a0-8b7e-4ecb-a03c-b43e152b2580">2026年研究生新生学业奖学金(硕士 博士)</option>
+
+	<option value="da12d48a-2dcc-4231-83ca-3a455adfc7b2">2026年研究生优秀学业奖学金(硕士 博士)</option>
+
+
+
+</select>
+
+            
+
+               
+
+                <input onclick="if (typeof(Page_ClientValidate) == 'function') Page_ClientValidate(''); __doPostBack('StuApplyPage1$StuApply1$UrlLink','')" name="StuApplyPage1$StuApply1$UrlLink" type="button" id="StuApplyPage1_StuApply1_UrlLink" style="width: 98px" value="查看学生处公告" class="input_button" disabled="disabled" />
+
+            
+
+        </td>
+
+    </tr>
+
+    <tr>
+
+        <td class="EdtTitleBack" style="width: 15%"><span id="StuApplyPage1_StuApply1_LbYX">学年：</span></td>
+
+        <td  class="EdtBack" style="width: 35%">
+
+            <span id="StuApplyPage1_StuApply1_BEYear2">2025-2026学年</span>
+
+            
+
+            <input type="hidden" name="StuApplyPage1$StuApply1$BEYear" id="StuApplyPage1_StuApply1_BEYear" value="2025-2026" />
+
+            <input type="hidden" name="StuApplyPage1$StuApply1$BEYearTerm" id="StuApplyPage1_StuApply1_BEYearTerm" value="2025-2026-" /></td>
+
+        <td style="width:15%;" class="EdtTitleBack">起止时间：</td>
+
+        <td class="EdtBack">
+
+            <span id="StuApplyPage1_StuApply1_BEDate">2026-10-27至2026-11-15</span></td>
+
+    </tr>
+
+    <tr>
+
+        <td class="EdtTitleBack">批次状态：</td>
+
+        <td class="EdtBack" >
+
+            <span id="StuApplyPage1_StuApply1_StatusName" style="color:Red;font-weight:bold;">已开始,可以提交申请</span></td>
+
+        <td class="EdtTitleBack"><span style="color: #ff0033">请选择</span>奖项：</td>
+
+        <td class="EdtBack">
+
+            <select name="StuApplyPage1$StuApply1$BursaryNo" id="StuApplyPage1_StuApply1_BursaryNo" style="margin: -2px">
+
+	<option value="0004015">研究生新生学业奖学金</option>
+
+</select>
+
+            <span id="StuApplyPage1_StuApply1_RequiredFieldValidator1" style="color:Red;visibility:hidden;"></span></td>
+
+    </tr>
+
+    <tr>
+
+        <td colspan="4" class="EdtTitleBack">
+
+            <input name="StuApplyPage1$StuApply1$LookBurrsary" type="button" id="StuApplyPage1_StuApply1_LookBurrsary" style="width: 98px" value="奖项介绍" class="input_button" onclick="SelSponsor()" />
+
+            <input onclick="if (typeof(Page_ClientValidate) == 'function') Page_ClientValidate(''); __doPostBack('StuApplyPage1$StuApply1$Apply','')" name="StuApplyPage1$StuApply1$Apply" type="button" id="StuApplyPage1_StuApply1_Apply" style="width: 108px" value="申请此奖项>>" class="input_button" />
+
+        </td>
+
+    </tr>
+
+</table>
+
+<script type="text/javascript">
+
+
+
+    var lySponsor;
+
+    function SelSponsor() {
+
+        lySponsor = layer.open({
+
+            type: 2,
+
+            title: '奖项介绍',
+
+            shadeClose: true,
+
+            shade: 0.5,
+
+            area: ['1080px', '500px'],
+
+            content: 'StuBursaryTypeLook.aspx?BursaryNo=' + document.getElementById('StuApplyPage1_StuApply1_BursaryNo').value
+
+        });
+
+    }
+
+</script>
+
+        <div class="DivCaption">
+
+            <div style="width: 45%; float: left; text-align: left;">&nbsp;<img src="../../Content/img/arrow.gif" />&nbsp;<span id="StuApplyPage1_BursaryName">学校奖学金</span>
+
+            </div>
+
+            <div style="float: right; text-align: right; margin: 6px 0 0 0;">
+
+                <div style="width:100%;float:right;margin-right:2px">
+
+<table id="StuApplyPage1_TPagedInfo1" cellpadding="1">
+
+	<tr>
+
+		<td><span id="StuApplyPage1_TPagedInfo1_myinfolbl">共检索到&nbsp;<font color=red>0</font>&nbsp;条记录，每页&nbsp;<font color=red>50</font>&nbsp;条，共&nbsp;<font color=red>0</font>&nbsp;页</span></td>
+
+	</tr>
+
+</table></div>
+
+
+
+            </div>
+
+        </div>
+
+        <input onclick="if (typeof(Page_ClientValidate) == 'function') Page_ClientValidate(''); __doPostBack('StuApplyPage1$ctl00','')" name="StuApplyPage1$ctl00" type="button" class="re_btn" style="display: none;" />
+
+        <div>
+
+	<table class="white form-table DivTable" cellspacing="0" cellpadding="3" border="0" id="StuApplyPage1_GridView1" style="color:#333333;font-size:9pt;width:100%;border-collapse:collapse;">
+
+		<tr>
+
+			<td colspan="9">未找到相关数据</td>
+
+		</tr>
+
+	</table>
+
+</div>
+
+        <div style="width:100%;text-align:right;margin:5px 0px;">
+
+<span id="StuApplyPage1_TPaged1" cellpadding="1" id="StuApplyPage1_TPaged1_lblCurrPage">共检索到&nbsp;<font color=red>0</font>&nbsp;条记录，每页&nbsp;<font color=red>50</font>&nbsp;条，第&nbsp;<font color=red class='PageNumber'>1</font>/<font color=red>1</font>&nbsp;页&nbsp;&nbsp;</span><input type="submit" name="StuApplyPage1$TPaged1$Fistpage" value="首  页" id="StuApplyPage1_TPaged1_Fistpage" disabled="disabled" /> 
+
+<input type="submit" name="StuApplyPage1$TPaged1$Prevpage" value="上一页" id="StuApplyPage1_TPaged1_Prevpage" disabled="disabled" /> 
+
+<input type="submit" name="StuApplyPage1$TPaged1$Nextpage" value="下一页" id="StuApplyPage1_TPaged1_Nextpage" disabled="disabled" /> 
+
+<input type="submit" name="StuApplyPage1$TPaged1$Lastpage" value="尾  页" id="StuApplyPage1_TPaged1_Lastpage" disabled="disabled" /> 
+
+<span id="StuApplyPage1_TPaged1_lbjumppage">跳转到第</span> 
+
+<input name="StuApplyPage1$TPaged1$GotoPage" type="text" id="StuApplyPage1_TPaged1_GotoPage" style="width:40px;text-align:center;" /> 
+
+<span id="StuApplyPage1_TPaged1_lbye">页</span> 
+
+<input type="submit" name="StuApplyPage1$TPaged1$Jump" value="跳  转" id="StuApplyPage1_TPaged1_Jump" disabled="disabled" />&nbsp;&nbsp;</div>
+
+
+
+    </div>
+
+</div>
+
+<script>
+
+    function btn_Print(obj) {
+
+        var btn = $(obj).next();
+
+        btn.click();
+
+        return true;
+
+    }
+
+</script>
+
+    
+
+<script type="text/javascript">
+
+//<![CDATA[
+
+var Page_Validators =  new Array(document.getElementById("StuApplyPage1_StuApply1_RequiredFieldValidator1"));
+
+//]]>
+
+</script>
+
+
+
+<script type="text/javascript">
+
+//<![CDATA[
+
+var StuApplyPage1_StuApply1_RequiredFieldValidator1 = document.all ? document.all["StuApplyPage1_StuApply1_RequiredFieldValidator1"] : document.getElementById("StuApplyPage1_StuApply1_RequiredFieldValidator1");
+
+StuApplyPage1_StuApply1_RequiredFieldValidator1.controltovalidate = "StuApplyPage1_StuApply1_BursaryNo";
+
+StuApplyPage1_StuApply1_RequiredFieldValidator1.evaluationfunction = "RequiredFieldValidatorEvaluateIsValid";
+
+StuApplyPage1_StuApply1_RequiredFieldValidator1.initialvalue = "";
+
+//]]>
+
+</script>
+
+
+
+
+
+<script type="text/javascript">
+
+//<![CDATA[
+
+
+
+var Page_ValidationActive = false;
+
+if (typeof(ValidatorOnLoad) == "function") {
+
+    ValidatorOnLoad();
+
+}
+
+
+
+function ValidatorOnSubmit() {
+
+    if (Page_ValidationActive) {
+
+        return ValidatorCommonOnSubmit();
+
+    }
+
+    else {
+
+        return true;
+
+    }
+
+}
+
+        //]]>
+
+</script>
+
+</form>
+
+</body>
+
+</html>
