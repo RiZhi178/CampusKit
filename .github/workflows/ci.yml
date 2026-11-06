@@ -35,16 +35,20 @@ jobs:
       - name: Set up Android SDK
         run: |
           set -e
-          ANDROID_HOME="$RUNNER_TEMP/android-sdk"
+          ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
-          mkdir -p "$ANDROID_HOME/cmdline-tools"
-          curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/cmdline-tools.zip
-          unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools"
-          mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-          yes | sdkmanager --licenses >/dev/null || true
-          yes | sdkmanager "platforms;android-37" "build-tools;35.0.0"
+          SDKMANAGER_BIN="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER_BIN" ]; then
+            SDKMANAGER_BIN="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)"
+          fi
+          if [ -z "$SDKMANAGER_BIN" ] || [ ! -x "$SDKMANAGER_BIN" ]; then
+            echo "::error::未在 $ANDROID_HOME 找到可用的 sdkmanager"
+            exit 1
+          fi
+          export PATH="$(dirname "$SDKMANAGER_BIN"):$PATH"
+          yes | "$SDKMANAGER_BIN" --licenses >/dev/null || true
+          yes | "$SDKMANAGER_BIN" "platforms;android-37" "build-tools;35.0.0"
 
       # 本机 wrapper 走腾讯云镜像（国内直连），GitHub Runner 可能连不上，
       # CI 内改写为官方分发源。本地仓库仍保留腾讯镜像，不改动。
@@ -82,16 +86,20 @@ jobs:
       - name: Set up Android SDK
         run: |
           set -e
-          ANDROID_HOME="$RUNNER_TEMP/android-sdk"
+          ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
-          mkdir -p "$ANDROID_HOME/cmdline-tools"
-          curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/cmdline-tools.zip
-          unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools"
-          mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
-          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
-          yes | sdkmanager --licenses >/dev/null || true
-          yes | sdkmanager "platforms;android-37" "build-tools;35.0.0"
+          SDKMANAGER_BIN="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER_BIN" ]; then
+            SDKMANAGER_BIN="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)"
+          fi
+          if [ -z "$SDKMANAGER_BIN" ] || [ ! -x "$SDKMANAGER_BIN" ]; then
+            echo "::error::未在 $ANDROID_HOME 找到可用的 sdkmanager"
+            exit 1
+          fi
+          export PATH="$(dirname "$SDKMANAGER_BIN"):$PATH"
+          yes | "$SDKMANAGER_BIN" --licenses >/dev/null || true
+          yes | "$SDKMANAGER_BIN" "platforms;android-37" "build-tools;35.0.0"
 
       - name: CI 改用官方 Gradle 分发源
         run: |
