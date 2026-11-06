@@ -1,0 +1,10 @@
+# .mailmap — 把分散在各机器/历史里的提交身份归并到统一身份 rizhi0718
+#
+# 格式：<统一显示名> <统一邮箱>  <原提交名> <原提交邮箱>
+#
+# 统一邮箱沿用 RiZhi178 账号已验证的 GitHub 私有邮箱，使 GitHub 网页贡献者仍正确归属本账号。
+# 若 rizhi0718 是另一个独立 GitHub 账号，请把统一邮箱换成该账号已验证的邮箱（形如 <id>+rizhi0718@users.noreply.github.com）。
+
+rizhi0718 <114067490+RiZhi178@users.noreply.github.com> RiZhi178 <114067490+RiZhi178@users.noreply.github.com>
+rizhi0718 <114067490+RiZhi178@users.noreply.github.com> Richi <richi@dev.local>
+rizhi0718 <114067490+RiZhi178@users.noreply.github.com> ricki <ricki@users.noreply.github.com>

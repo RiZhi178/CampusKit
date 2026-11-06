@@ -1,5 +1,10 @@
 # CampusKit
 
+![license](https://img.shields.io/github/license/RiZhi178/QDUCampus?style=flat-square)
+![release](https://img.shields.io/github/v/release/RiZhi178/QDUCampus?style=flat-square&color=E67138)
+![Android](https://img.shields.io/badge/Android-13%2B-3DDC84?style=flat-square&logo=android&logoColor=white)
+![Kotlin](https://img.shields.io/badge/Kotlin-2.3.21-7F52FF?style=flat-square&logo=kotlin&logoColor=white)
+
 一个面向青岛大学学生的 Android 校园服务客户端。它把散落在学校各个网站与小程序里的日常事务收进一个应用：查课表、看校内通知、查宿舍电费、预约自习座位、检索图书馆藏书、报修宿舍设施、扫机身码使用水电设备，装一个 App 就都够用了。
 
 > 本项目**不是青岛大学官方应用**，由个人开发维护，任何人可自行下载安装使用。学校官方系统随时可能改版，某个功能失效不代表 App 坏了，维护者会尽快跟进修复。
