@@ -36,6 +36,7 @@ jobs:
         run: |
           set -e
           ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           SDKMANAGER_BIN="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -44,11 +45,17 @@ jobs:
           fi
           if [ -z "$SDKMANAGER_BIN" ] || [ ! -x "$SDKMANAGER_BIN" ]; then
             echo "::error::未在 $ANDROID_HOME 找到可用的 sdkmanager"
+            ls -la "$ANDROID_HOME" 2>&1 | sed 's/^/  /' || true
             exit 1
           fi
+          echo "sdkmanager=$SDKMANAGER_BIN"
           export PATH="$(dirname "$SDKMANAGER_BIN"):$PATH"
-          yes | "$SDKMANAGER_BIN" --licenses >/dev/null || true
-          yes | "$SDKMANAGER_BIN" "platforms;android-37" "build-tools;35.0.0"
+          yes | "$SDKMANAGER_BIN" --licenses >/dev/null 2>&1 || true
+          echo "=== 开始安装 platforms;android-37 build-tools;35.0.0 ==="
+          if ! yes | "$SDKMANAGER_BIN" "platforms;android-37" "build-tools;35.0.0" >/tmp/sdk_install.log 2>&1; then
+            echo "::error::sdkmanager 安装失败，最后 25 行输出：$(tail -n 25 /tmp/sdk_install.log | tr '\n' ' ')"
+            exit 1
+          fi
 
       # 本机 wrapper 走腾讯云镜像（国内直连），GitHub Runner 可能连不上，
       # CI 内改写为官方分发源。本地仓库仍保留腾讯镜像，不改动。
@@ -87,6 +94,7 @@ jobs:
         run: |
           set -e
           ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           SDKMANAGER_BIN="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
@@ -95,11 +103,17 @@ jobs:
           fi
           if [ -z "$SDKMANAGER_BIN" ] || [ ! -x "$SDKMANAGER_BIN" ]; then
             echo "::error::未在 $ANDROID_HOME 找到可用的 sdkmanager"
+            ls -la "$ANDROID_HOME" 2>&1 | sed 's/^/  /' || true
             exit 1
           fi
+          echo "sdkmanager=$SDKMANAGER_BIN"
           export PATH="$(dirname "$SDKMANAGER_BIN"):$PATH"
-          yes | "$SDKMANAGER_BIN" --licenses >/dev/null || true
-          yes | "$SDKMANAGER_BIN" "platforms;android-37" "build-tools;35.0.0"
+          yes | "$SDKMANAGER_BIN" --licenses >/dev/null 2>&1 || true
+          echo "=== 开始安装 platforms;android-37 build-tools;35.0.0 ==="
+          if ! yes | "$SDKMANAGER_BIN" "platforms;android-37" "build-tools;35.0.0" >/tmp/sdk_install.log 2>&1; then
+            echo "::error::sdkmanager 安装失败，最后 25 行输出：$(tail -n 25 /tmp/sdk_install.log | tr '\n' ' ')"
+            exit 1
+          fi
 
       - name: CI 改用官方 Gradle 分发源
         run: |
