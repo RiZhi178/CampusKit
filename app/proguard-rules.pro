@@ -21,3 +21,12 @@
 # security-crypto 依赖的 tink 引用了编译期注解，运行时不需要
 -dontwarn com.google.errorprone.annotations.**
 -dontwarn javax.annotation.**
+
+# ML Kit / Firebase 的组件注册：MlKitComponentDiscoveryService 按 AndroidManifest 里
+# meta-data 声明的类名反射实例化 ComponentRegistrar，这条调用链 R8 静态分析看不到。
+# 依赖 firebase-components 自带的 consumer 规则只 keep 了类名、没保无参构造器，
+# 收缩会把 <init>() 删掉，运行时报 NoSuchMethodException，扫码器初始化失败，
+# 在扫码页表现为「相机启动失败」。类名与全部成员都保住，混淆和只收缩两种构建都覆盖。
+-keep class * implements com.google.firebase.components.ComponentRegistrar {
+    *;
+}
