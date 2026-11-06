@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+# 默认最小权限；release 作业单独提升为 contents: write 才能建 Release。
+permissions:
+  contents: read
+
+# 同一分支/标签的多次推送只保留最新一次运行，取消旧的以省算力。
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 编译验证 + 单元测试 ───────────────────────────────────────────────
+  # 每次 push 到 main、或打 v* tag 都会跑。纯 JVM 单测（:core:test 与
+  # :app:testDebugUnitTest 都用 JUnit，不需要模拟器），失败即在提交上标红。
+  verify:
+    name: 编译验证 + 单元测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 SDK platform 37 与 build-tools
+        run: yes | sdkmanager "platforms;android-37" "build-tools;35.0.0"
+
+      # 本机 wrapper 走腾讯云镜像（国内直连），GitHub Runner 可能连不上，
+      # CI 内改写为官方分发源。本地仓库仍保留腾讯镜像，不改动。
+      - name: CI 改用官方 Gradle 分发源
+        run: |
+          sed -i 's#^distributionUrl=.*#distributionUrl=https://services.gradle.org/distributions/gradle-9.6.1-bin.zip#' gradle/wrapper/gradle-wrapper.properties
+          grep distributionUrl gradle/wrapper/gradle-wrapper.properties
+
+      - name: 赋予 gradlew 可执行权限
+        run: chmod +x gradlew
+
+      - name: 编译 Debug 并跑单元测试
+        run: ./gradlew assembleDebug :core:test :app:testDebugUnitTest --stacktrace
+
+  # ── 签名 Release 包 ──────────────────────────────────────────────────
+  # 只在打 v* tag 时触发，且依赖 verify 通过。产物为签名 release APK，
+  # 自动建 GitHub Release 并上传。缺密钥时本作业明确失败并给出提示。
+  release:
+    name: 签名 Release 包
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 安装 SDK platform 37 与 build-tools
+        run: yes | sdkmanager "platforms;android-37" "build-tools;35.0.0"
+
+      - name: CI 改用官方 Gradle 分发源
+        run: |
+          sed -i 's#^distributionUrl=.*#distributionUrl=https://services.gradle.org/distributions/gradle-9.6.1-bin.zip#' gradle/wrapper/gradle-wrapper.properties
+          grep distributionUrl gradle/wrapper/gradle-wrapper.properties
+
+      - name: 赋予 gradlew 可执行权限
+        run: chmod +x gradlew
+
+      # 把 base64 编码的 keystore 还原成文件。缺密钥则明确失败。
+      - name: 还原签名 keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.QDU_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error::缺少密钥 QDU_RELEASE_KEYSTORE_BASE64，无法构建签名 Release 包。请在仓库 Settings → Secrets 中添加 keystore 的 base64（命令：base64 -w0 ~/.qdu-campus/keystore/release.jks）。"
+            exit 1
+          fi
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: 构建签名 Release APK
+        env:
+          QDU_RELEASE_STORE_FILE: ${{ runner.temp }}/release.jks
+          QDU_RELEASE_STORE_PASSWORD: ${{ secrets.QDU_RELEASE_STORE_PASSWORD }}
+          QDU_RELEASE_KEY_ALIAS: ${{ secrets.QDU_RELEASE_KEY_ALIAS }}
+          QDU_RELEASE_KEY_PASSWORD: ${{ secrets.QDU_RELEASE_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --stacktrace
+
+      - name: 创建 GitHub Release 并上传 APK
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/outputs/apk/release/app-release.apk
+          generate_release_notes: true
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
