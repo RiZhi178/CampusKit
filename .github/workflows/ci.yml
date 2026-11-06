@@ -33,10 +33,22 @@ jobs:
           cache: gradle
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: 安装 SDK platform 37 与 build-tools
-        run: yes | sdkmanager "platforms;android-37" "build-tools;35.0.0"
+        run: |
+          set -e
+          ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          if [ ! -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq unzip curl
+            mkdir -p "$ANDROID_HOME/cmdline-tools"
+            curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/cmdline-tools.zip
+            unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools"
+            mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          fi
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-37" "build-tools;35.0.0"
 
       # 本机 wrapper 走腾讯云镜像（国内直连），GitHub Runner 可能连不上，
       # CI 内改写为官方分发源。本地仓库仍保留腾讯镜像，不改动。
@@ -72,10 +84,22 @@ jobs:
           cache: gradle
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: 安装 SDK platform 37 与 build-tools
-        run: yes | sdkmanager "platforms;android-37" "build-tools;35.0.0"
+        run: |
+          set -e
+          ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          if [ ! -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq unzip curl
+            mkdir -p "$ANDROID_HOME/cmdline-tools"
+            curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/cmdline-tools.zip
+            unzip -q /tmp/cmdline-tools.zip -d "$ANDROID_HOME/cmdline-tools"
+            mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
+          fi
+          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-37" "build-tools;35.0.0"
 
       - name: CI 改用官方 Gradle 分发源
         run: |
