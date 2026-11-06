@@ -32,32 +32,18 @@ jobs:
           java-version: '21'
           cache: gradle
 
-      - name: Set up Android SDK（诊断）
+      - name: Set up Android SDK
         run: |
           ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
-          echo "::warning::JAVA_HOME=$JAVA_HOME"
-          java -version 2>&1 | head -3 | sed 's/^/::warning::java /' || true
-          echo "::warning::PREINSTALLED platforms: $(ls "$ANDROID_HOME/platforms" 2>/dev/null | tr '\n' ' ')"
-          echo "::warning::PREINSTALLED build-tools: $(ls "$ANDROID_HOME/build-tools" 2>/dev/null | tr '\n' ' ')"
-          echo "::warning::PREINSTALLED cmdline-tools: $(ls "$ANDROID_HOME/cmdline-tools" 2>/dev/null | tr '\n' ' ')"
-          CODE=$(timeout 20 curl -sS -o /dev/null -w '%{http_code}' https://dl.google.com/android/repository/repository2-3.xml 2>/dev/null || echo FAIL)
-          echo "::warning::network dl.google.com/repository2-3.xml => $CODE"
           SDKMANAGER_BIN="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           [ -x "$SDKMANAGER_BIN" ] || SDKMANAGER_BIN="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)"
-          echo "::warning::sdkmanager=$SDKMANAGER_BIN"
           export PATH="$(dirname "$SDKMANAGER_BIN"):$PATH"
+          # 接受许可证是纯本地操作，不依赖网络；Runner 已预装 android-37 与 build-tools，
+          # 因此联网安装只是“尽力补装”，失败也不阻断——预装件足以构建。
           yes | "$SDKMANAGER_BIN" --licenses >/dev/null 2>&1 || true
-          echo "::warning::attempting install platforms;android-37 build-tools;35.0.0"
-          if yes | "$SDKMANAGER_BIN" "platforms;android-37" "build-tools;35.0.0" >/tmp/sdk_install.log 2>&1; then
-            echo "::warning::sdkmanager install SUCCEEDED"
-          else
-            echo "::error::sdkmanager install FAILED"
-            awk 'NR<=40{printf "%s ", $0}' /tmp/sdk_install.log | sed 's/^/::error::log /'
-          fi
-          echo "::warning::AFTER install platforms: $(ls "$ANDROID_HOME/platforms" 2>/dev/null | tr '\n' ' ')"
-          true
+          timeout 180 yes | "$SDKMANAGER_BIN" "platforms;android-37" "build-tools;35.0.0" >/dev/null 2>&1 || true
 
       # 本机 wrapper 走腾讯云镜像（国内直连），GitHub Runner 可能连不上，
       # CI 内改写为官方分发源。本地仓库仍保留腾讯镜像，不改动。
@@ -94,28 +80,14 @@ jobs:
 
       - name: Set up Android SDK
         run: |
-          set -e
           ANDROID_HOME="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
-          echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
           SDKMANAGER_BIN="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-          if [ ! -x "$SDKMANAGER_BIN" ]; then
-            SDKMANAGER_BIN="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)"
-          fi
-          if [ -z "$SDKMANAGER_BIN" ] || [ ! -x "$SDKMANAGER_BIN" ]; then
-            echo "::error::未在 $ANDROID_HOME 找到可用的 sdkmanager"
-            ls -la "$ANDROID_HOME" 2>&1 | sed 's/^/  /' || true
-            exit 1
-          fi
-          echo "sdkmanager=$SDKMANAGER_BIN"
+          [ -x "$SDKMANAGER_BIN" ] || SDKMANAGER_BIN="$(ls "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager 2>/dev/null | head -1)"
           export PATH="$(dirname "$SDKMANAGER_BIN"):$PATH"
           yes | "$SDKMANAGER_BIN" --licenses >/dev/null 2>&1 || true
-          echo "=== 开始安装 platforms;android-37 build-tools;35.0.0 ==="
-          if ! yes | "$SDKMANAGER_BIN" "platforms;android-37" "build-tools;35.0.0" >/tmp/sdk_install.log 2>&1; then
-            echo "::error::sdkmanager 安装失败，最后 25 行输出：$(tail -n 25 /tmp/sdk_install.log | tr '\n' ' ')"
-            exit 1
-          fi
+          timeout 180 yes | "$SDKMANAGER_BIN" "platforms;android-37" "build-tools;35.0.0" >/dev/null 2>&1 || true
 
       - name: CI 改用官方 Gradle 分发源
         run: |
