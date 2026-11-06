@@ -370,7 +370,7 @@ private fun DialogAction(
 }
 
 /** 仓库公开页：检查更新看 Releases（取数走 UpdateFetcher），反馈提 Issues。 */
-private const val REPO_NEW_ISSUE_URL = "https://github.com/RiZhi178/QDUCampus/issues/new"
+private const val REPO_NEW_ISSUE_URL = "https://github.com/RiZhi178/CampusKit/issues/new"
 
 /**
  * 发现新版本的弹窗：版本号 + 发布说明（原文，超长内滚）+ 打开 Release 页。

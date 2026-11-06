@@ -20,7 +20,7 @@ class GithubReleaseTest {
             .readText()
         val release = parseGithubRelease(text)!!
         assertEquals("v0.9.14", release.tagName)
-        assertEquals("https://github.com/RiZhi178/QDUCampus/releases/tag/v0.9.14", release.htmlUrl)
+        assertEquals("https://github.com/RiZhi178/CampusKit/releases/tag/v0.9.14", release.htmlUrl)
         assertTrue(release.isPrerelease)
         assertEquals("0.9.14-alpha", release.name)
     }

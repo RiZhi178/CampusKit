@@ -39,7 +39,7 @@ class UpdateFetcher @Inject constructor(
 
     fun fetchLatest(): Outcome {
         val request = Request.Builder()
-            .url("https://api.github.com/repos/RiZhi178/QDUCampus/releases/latest")
+            .url("https://api.github.com/repos/RiZhi178/CampusKit/releases/latest")
             .build()
         return runCatching {
             http.client.newCall(request).execute().use { response ->
@@ -79,6 +79,6 @@ class UpdateFetcher @Inject constructor(
     }.getOrDefault("未知")
 
     companion object {
-        const val REPO_RELEASES_URL = "https://github.com/RiZhi178/QDUCampus/releases"
+        const val REPO_RELEASES_URL = "https://github.com/RiZhi178/CampusKit/releases"
     }
 }
