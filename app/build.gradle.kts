@@ -58,7 +58,7 @@ android {
         // 1.0.0 留给正式版本身。
         val appMajor = 0
         val appMinor = 9
-        val appPatch = 15
+        val appPatch = 16
         val appStage = "alpha"
         versionCode = appMajor * 10_000 + appMinor * 1_000 + appPatch
         versionName = "$appMajor.$appMinor.$appPatch-$appStage"
