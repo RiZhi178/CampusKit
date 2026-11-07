@@ -59,6 +59,7 @@ import qdu.campus.feature.home.HomeCardEditScreen
 import qdu.campus.feature.home.HomeScreen
 import qdu.campus.feature.library.LibraryScreen
 import qdu.campus.feature.network.NetworkScreen
+import qdu.campus.feature.notice.NoticeDetailScreen
 import qdu.campus.feature.notice.NoticeScreen
 import qdu.campus.feature.onboarding.OnboardingScreen
 import qdu.campus.feature.scan.ScanScreen
@@ -183,7 +184,7 @@ fun AppNavHost() {
             ) {
                 NoticeScreen(
                     onOpenNotice = { notice ->
-                        navController.navigate(Routes.webUrl(notice.url, notice.title))
+                        navController.navigate(Routes.noticeDetail(notice.url, notice.title))
                     },
                 )
             }
@@ -379,6 +380,24 @@ fun AppNavHost() {
                         onOpenLogin = { navController.navigate(Routes.LOGIN) },
                     )
                 }
+            }
+
+            composable(
+                route = Routes.NOTICE_DETAIL,
+                arguments = listOf(
+                    navArgument("url") { type = NavType.StringType },
+                    navArgument("title") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
+            ) { entry ->
+                NoticeDetailScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenWeb = { url, title ->
+                        navController.navigate(Routes.webUrl(url, title))
+                    },
+                )
             }
 
             composable(

@@ -63,8 +63,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -80,6 +83,7 @@ import qdu.campus.domain.model.SemesterOption
 import qdu.campus.domain.model.TimetableLevel
 import qdu.campus.domain.model.WeekSchedule
 import qdu.campus.platform.common.Formats
+import qdu.campus.platform.designsystem.LocalStatusColors
 import qdu.campus.platform.designsystem.InlineNotice
 import qdu.campus.platform.designsystem.ListRow
 import qdu.campus.platform.designsystem.PlaceholderBlock
@@ -147,6 +151,16 @@ fun TimetableScreen(
                 onNext = { viewModel.selectWeek(state.selectedWeek + 1) },
                 onToday = viewModel::backToCurrentWeek,
             )
+
+            // 新学期资产就绪而旧勾选失效：一个都匹配不上才提示，部分缺失不给用户添堵。
+            if (state.staleClasses) {
+                InlineNotice(
+                    text = "勾选的班级在新学期课程总表里找不到了——课表大概率已更新，重新选一次班",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    actionLabel = "重新选班",
+                    onAction = { pickClasses = true },
+                )
+            }
 
             val message = state.message
             if (message != null) {
@@ -405,6 +419,7 @@ private fun ScheduleGrid(
     onCourseClick: (Course) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
+    val status = LocalStatusColors.current
     val todayDay = if (isCurrentWeek) today.dayOfWeek.value else -1
     val rows = schedule.sections.ifEmpty {
         listOf(ClassSection(1, "", "", "", "第一节"))
@@ -420,26 +435,68 @@ private fun ScheduleGrid(
                         .padding(vertical = 8.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = Formats.weekdayLabel(day).removePrefix("周"),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (day == todayDay) FontWeight.Bold else FontWeight.Normal,
-                            color = if (day == todayDay) scheme.primary else scheme.onSurfaceVariant,
-                        )
-                        if (day == todayDay) {
+                    // 列头统一高度：只显示「一二三四五六日」「今」「休」「调」，不显示日期数字
+                    //（日期在周切换条的 mm.dd-mm.dd 区间里有，列头不再重复占一行）。
+                    // 「今」优先级最高——今天即使是休/调日也只显示「今」，假期/调休信息进读屏描述，
+                    // 视觉上由下方课程格自己交代（休=整天空、调=有课）。其他日期：校历调停课的
+                    // 「休」（绿=休息）、「调」（黄=要上课）替换星期字装进实心圆点——状态色当底、
+                    // 字按底色明度取黑或白；圆径与文字行高统一为 headerHeight，星期信息靠列位置
+                    // 与读屏描述承载。
+                    val note = schedule.dayNotes[day]
+                    val headerHeight = with(LocalDensity.current) {
+                        MaterialTheme.typography.labelMedium.lineHeight.toDp() * 1.5f
+                    }
+                    if (day == todayDay) {
+                        Box(
+                            modifier = Modifier.height(headerHeight),
+                            contentAlignment = Alignment.Center,
+                        ) {
                             Text(
-                                text = today.dayOfMonth.toString(),
-                                style = MaterialTheme.typography.labelSmall,
+                                text = "今",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
                                 color = scheme.primary,
+                                modifier = Modifier.semantics {
+                                    contentDescription = "今天，星期" +
+                                        Formats.weekdayLabel(day).removePrefix("周") +
+                                        when (note) {
+                                            "休" -> "，假期休息"
+                                            "调" -> "，调休上课"
+                                            else -> ""
+                                        }
+                                },
                             )
                         }
-                        // 校历调停课标注：假期「休」、调休「调」。文字信息，不靠颜色说话
-                        schedule.dayNotes[day]?.let { note ->
+                    } else if (note == null) {
+                        Box(
+                            modifier = Modifier.height(headerHeight),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = Formats.weekdayLabel(day).removePrefix("周"),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = scheme.onSurfaceVariant,
+                            )
+                        }
+                    } else {
+                        val noteColor = if (note == "休") status.success else status.warning
+                        val onNote = if (noteColor.luminance() > 0.5f) Color.Black else Color.White
+                        Box(
+                            modifier = Modifier
+                                .size(headerHeight)
+                                .clip(CircleShape)
+                                .background(noteColor)
+                                .semantics {
+                                    contentDescription =
+                                        "星期" + Formats.weekdayLabel(day).removePrefix("周") +
+                                            if (note == "休") "，假期休息" else "，调休上课"
+                                },
+                            contentAlignment = Alignment.Center,
+                        ) {
                             Text(
                                 text = note,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = scheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = onNote,
                             )
                         }
                     }

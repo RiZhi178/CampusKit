@@ -56,6 +56,20 @@ object Routes {
     /** 学工评奖评优：批次窗口与本人申请记录，原生页。缺会话时走 [web] 的学工门户手点一次。 */
     const val XG_AWARD = "xg-award"
 
+    /** 学工日常请假：列表、申请、详情与撤销，原生页。缺会话时走 [web] 的学工门户手点一次。 */
+    const val XG_LEAVE = "xg-leave"
+
+    /** 请假表单兼详情：[id] 为空是新建，带记录号是详情（只读 + 撤销）。 */
+    const val XG_LEAVE_FORM = "xg-leave-form?id={id}"
+
+    fun leaveForm(id: String = ""): String = "xg-leave-form?id=${Uri.encode(id)}"
+
+    /** 通知详情原生化：正文原生渲染，附件与兜底走系统浏览器 / 原网页。 */
+    const val NOTICE_DETAIL = "notice-detail?url={url}&title={title}"
+
+    fun noticeDetail(url: String, title: String): String =
+        "notice-detail?url=${Uri.encode(url)}&title=${Uri.encode(title)}"
+
     const val WEB = "web/{serviceId}"
     const val WEB_URL = "web-url/{url}?title={title}"
 

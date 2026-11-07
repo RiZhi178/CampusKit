@@ -6,6 +6,8 @@ import qdu.campus.data.local.db.SyncDao
 import qdu.campus.data.local.db.SyncMetadataEntity
 import qdu.campus.data.remote.graduate.NoticeParser
 import qdu.campus.data.remote.jwc.JwcNoticeParser
+import qdu.campus.data.remote.notice.NoticeDetail
+import qdu.campus.data.remote.notice.NoticeDetailParser
 import qdu.campus.domain.model.Notice
 import qdu.campus.domain.model.SyncState
 import qdu.campus.domain.repository.NoticeRepository
@@ -162,6 +164,23 @@ class NoticeRepositoryImpl @Inject constructor(
     }
 
     override suspend fun markRead(fingerprint: String) = dao.markRead(fingerprint)
+
+    /**
+     * 详情页进程内缓存：一次会话里反复点开同一条不重复拉（AGENTS 4.3 的同页面节流口径）。
+     * 不进 Room——正文缓存是体验优化不是数据资产，进程死了重拉一次即可。
+     */
+    private val detailCache = object : LinkedHashMap<String, NoticeDetail>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, NoticeDetail>): Boolean =
+            size > 24
+    }
+
+    override suspend fun fetchDetail(url: String): NoticeDetail? = withContext(Dispatchers.IO) {
+        detailCache[url]?.let { return@withContext it }
+        runCatching {
+            val html = http.fetchHtml(url, "通知详情")
+            NoticeDetailParser.parse(html, url)?.also { detailCache[url] = it }
+        }.getOrNull()
+    }
 
     override suspend fun clear() {
         dao.clear()

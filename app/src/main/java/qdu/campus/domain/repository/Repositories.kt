@@ -13,6 +13,7 @@ import qdu.campus.domain.model.LibraryReader
 import qdu.campus.domain.model.LibrarySearchPage
 import qdu.campus.domain.model.NoScheduleCourse
 import qdu.campus.domain.model.Notice
+import qdu.campus.data.remote.notice.NoticeDetail
 import qdu.campus.domain.model.RepairDetail
 import qdu.campus.domain.model.RepairDraft
 import qdu.campus.domain.model.RepairOption
@@ -26,6 +27,10 @@ import qdu.campus.domain.model.SessionState
 import qdu.campus.domain.model.SyncState
 import qdu.campus.domain.model.TimetableLevel
 import qdu.campus.domain.model.XgAwardPage
+import qdu.campus.domain.model.XgLeaveFormPage
+import qdu.campus.domain.model.XgLeaveListPage
+import qdu.campus.domain.model.XgLeaveRecord
+import qdu.campus.domain.model.XgLeaveWriteResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import java.time.LocalDate
@@ -65,6 +70,12 @@ interface NoticeRepository {
     suspend fun refresh(): RefreshOutcome
     suspend fun markRead(fingerprint: String)
     suspend fun clear()
+
+    /**
+     * 抓取并解析一条通知的详情页（博达 CMS 正文 + 附件清单）。
+     * 进程内按 URL 缓存；失败返回 null，由页面给「重试 / 打开原网页」。
+     */
+    suspend fun fetchDetail(url: String): NoticeDetail?
 }
 
 /**
@@ -151,15 +162,43 @@ interface ZzmpRepository {
 }
 
 /**
- * 学工系统（xg）各子系统的只读页面。见 `docs/interfaces/xg.md`。
+ * 学工系统（xg）各子系统的页面。见 `docs/interfaces/xg.md`。
  *
  * 会话只能由门户页面自己签发，所以这一层假设「本机已经有学工的会话」：
  * 没有就抛 [qdu.campus.platform.common.XgAuthException]，由界面把人送回学工入口手点一次，
  * 不在原生里模拟跳票、也不挂隐藏页自动点。
+ *
+ * 评奖评优只读；日常请假的读写已授权原生实现，写操作走整表单回发并重读列表核对成败。
  */
 interface XgRepository {
     /** 评奖评优的学校奖助页：批次窗口 + 本人申请记录。 */
     suspend fun schoolAwardApply(): XgAwardPage
+
+    /** 我的请假列表：申请入口或在途互斥提示 + 本人记录。 */
+    suspend fun leaveList(): XgLeaveListPage
+
+    /** 新建表单（[recordId] 为空）或详情（带记录号）。 */
+    suspend fun leaveForm(recordId: String = ""): XgLeaveFormPage
+
+    /** 提交请假。[existingIds] 是提交前列表里的记录号，用来核对是否真的多出一条。 */
+    suspend fun submitLeave(
+        page: XgLeaveFormPage,
+        edits: Map<String, String>,
+        existingIds: Set<String>,
+    ): XgLeaveWriteResult
+
+    /** 列表行内撤销。[page] 必须是撤销前刚读到的列表，按钮名随行号前移。 */
+    suspend fun revokeLeave(record: XgLeaveRecord, page: XgLeaveListPage): XgLeaveWriteResult
+
+    /** 详情内撤销。 */
+    suspend fun revokeLeaveDetail(page: XgLeaveFormPage): XgLeaveWriteResult
+
+    /** 省→市→区联动回发，返回重绑下级选项后的整页表单。 */
+    suspend fun cascadeArea(
+        page: XgLeaveFormPage,
+        selectName: String,
+        edits: Map<String, String>,
+    ): XgLeaveFormPage
 }
 
 interface SessionRepository {
@@ -221,6 +260,14 @@ interface SettingsRepository {
 
     /** 上一次应用本科课表的时刻，页面用它说「数据更新于」。 */
     val undergraduateAppliedAt: Flow<Long?>
+
+    /**
+     * 首页更新横幅已忽略的 release tag（如 `v1.1.0`）。
+     * 同版本只提醒一次；空串 = 没有忽略过任何版本。
+     */
+    val updateDismissedTag: Flow<String>
+
+    suspend fun setUpdateDismissedTag(value: String)
 
     suspend fun setSemesterId(value: String)
     suspend fun setTermStartDate(value: String)
