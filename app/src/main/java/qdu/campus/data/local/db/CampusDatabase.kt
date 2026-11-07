@@ -11,12 +11,18 @@ import androidx.room.RoomDatabase
         NoScheduleCourseEntity::class,
         NoticeEntity::class,
         SyncMetadataEntity::class,
+        UgTimetableEntryEntity::class,
+        DormBuildingEntity::class,
+        CalendarDayEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class CampusDatabase : RoomDatabase() {
     abstract fun timetableDao(): TimetableDao
+    abstract fun ugTimetableDao(): UgTimetableDao
+    abstract fun dormBuildingDao(): DormBuildingDao
+    abstract fun calendarDao(): CalendarDao
     abstract fun noticeDao(): NoticeDao
     abstract fun syncDao(): SyncDao
 

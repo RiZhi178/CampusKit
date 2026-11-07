@@ -121,6 +121,9 @@ interface SyncDao {
     @Query("SELECT * FROM sync_metadata WHERE source = :source")
     fun observe(source: String): Flow<SyncMetadataEntity?>
 
+    @Query("SELECT * FROM sync_metadata WHERE source = :source")
+    suspend fun observeOnce(source: String): SyncMetadataEntity?
+
     @Query("SELECT * FROM sync_metadata")
     fun observeAll(): Flow<List<SyncMetadataEntity>>
 
@@ -128,3 +131,86 @@ interface SyncDao {
     suspend fun clear()
 }
 
+
+@Dao
+interface UgTimetableDao {
+
+    @Query(
+        "SELECT * FROM ug_timetable_entries WHERE semesterId = :semesterId AND className IN (:classes)"
+    )
+    suspend fun loadByClasses(semesterId: String, classes: Set<String>): List<UgTimetableEntryEntity>
+
+    @Query("SELECT * FROM ug_timetable_entries WHERE semesterId = :semesterId")
+    suspend fun loadBySemester(semesterId: String): List<UgTimetableEntryEntity>
+
+    @Query(
+        "SELECT DISTINCT className FROM ug_timetable_entries WHERE semesterId = :semesterId ORDER BY className"
+    )
+    suspend fun classNames(semesterId: String): List<String>
+
+    @Query("SELECT DISTINCT semesterId FROM ug_timetable_entries ORDER BY semesterId DESC LIMIT 1")
+    suspend fun latestSemester(): String?
+
+    @Query(
+        "SELECT t.id AS id, t.name AS name, t.startDate AS startDate FROM terms t " +
+            "WHERE t.id IN (SELECT DISTINCT semesterId FROM ug_timetable_entries) ORDER BY t.id DESC"
+    )
+    suspend fun semesterMeta(): List<UgSemesterMeta>
+
+    @Query("SELECT COUNT(*) FROM ug_timetable_entries WHERE semesterId = :semesterId")
+    suspend fun count(semesterId: String): Int
+
+    @Upsert
+    suspend fun insertAll(items: List<UgTimetableEntryEntity>)
+
+    @Query("DELETE FROM ug_timetable_entries WHERE semesterId = :semesterId")
+    suspend fun deleteBySemester(semesterId: String)
+
+    @Query("DELETE FROM ug_timetable_entries")
+    suspend fun clear()
+}
+
+@Dao
+interface DormBuildingDao {
+
+    @Query("SELECT * FROM dorm_buildings ORDER BY campus, name")
+    suspend fun loadAll(): List<DormBuildingEntity>
+
+    @Query("SELECT COUNT(*) FROM dorm_buildings")
+    suspend fun count(): Int
+
+    @Upsert
+    suspend fun insertAll(items: List<DormBuildingEntity>)
+
+    @Query("DELETE FROM dorm_buildings")
+    suspend fun clear()
+}
+
+@Dao
+interface CalendarDao {
+
+    @Query("SELECT * FROM calendar_days")
+    fun observeAll(): Flow<List<CalendarDayEntity>>
+
+    @Query("SELECT * FROM calendar_days WHERE date BETWEEN :start AND :end")
+    suspend fun loadBetween(start: String, end: String): List<CalendarDayEntity>
+
+    @Query("SELECT * FROM calendar_days WHERE date = :date")
+    suspend fun load(date: String): CalendarDayEntity?
+
+    @Upsert
+    suspend fun insertAll(items: List<CalendarDayEntity>)
+
+    @Query("DELETE FROM calendar_days WHERE academicYear = :academicYear")
+    suspend fun deleteByAcademicYear(academicYear: String)
+
+    @Query("DELETE FROM calendar_days")
+    suspend fun clear()
+}
+
+/** 本科学期元数据投影：学期清单来自 terms 表，成员资格来自 ug_timetable_entries。 */
+data class UgSemesterMeta(
+    val id: String,
+    val name: String?,
+    val startDate: String?,
+)

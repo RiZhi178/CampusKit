@@ -37,3 +37,63 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         db.execSQL("DROP TABLE IF EXISTS `wechat_messages`")
     }
 }
+
+/**
+ * v5 新增三张种子表：本科班级课表、电费楼栋字典、校历调停课规则。
+ * 全部是空表起步，内容由启动时的资产种子填充；旧数据（terms / sections /
+ * courses / notices 等）原样保留。
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `ug_timetable_entries` (
+                `id` TEXT NOT NULL,
+                `semesterId` TEXT NOT NULL,
+                `className` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `code` TEXT NOT NULL,
+                `teachers` TEXT NOT NULL,
+                `dept` TEXT NOT NULL,
+                `campus` TEXT NOT NULL,
+                `kind` TEXT NOT NULL,
+                `day` INTEGER NOT NULL,
+                `periods` TEXT NOT NULL,
+                `weeks` TEXT NOT NULL,
+                `room` TEXT NOT NULL,
+                `credits` REAL NOT NULL,
+                `hours` INTEGER NOT NULL,
+                PRIMARY KEY(`id`)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS `index_ug_timetable_entries_semesterId_className` " +
+                "ON `ug_timetable_entries` (`semesterId`, `className`)",
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `dorm_buildings` (
+                `buildingId` TEXT NOT NULL,
+                `campusId` TEXT NOT NULL,
+                `campus` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `code` TEXT,
+                PRIMARY KEY(`buildingId`)
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS `calendar_days` (
+                `date` TEXT NOT NULL,
+                `academicYear` TEXT NOT NULL,
+                `kind` TEXT NOT NULL,
+                `name` TEXT NOT NULL,
+                `followsDate` TEXT,
+                PRIMARY KEY(`date`)
+            )
+            """.trimIndent(),
+        )
+    }
+}

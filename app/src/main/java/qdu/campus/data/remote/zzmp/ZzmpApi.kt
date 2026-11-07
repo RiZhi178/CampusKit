@@ -13,6 +13,7 @@ import qdu.campus.platform.common.RoomCodeRejectedException
 import qdu.campus.platform.common.ZzmpAuthException
 import qdu.campus.platform.network.HttpClientFactory
 import qdu.campus.platform.network.appJson
+import qdu.campus.platform.network.serverFailure
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -141,7 +142,7 @@ class ZzmpApi @Inject constructor(
             .getOrElse { throw RemoteDataException("无法连接电费系统：${it.message}") }
 
         response.use {
-            if (!it.isSuccessful) throw RemoteDataException("电费系统返回 ${it.code}")
+            if (!it.isSuccessful) throw it.serverFailure("电费系统")
             val text = it.body?.string().orEmpty()
             if (text.isBlank()) throw RemoteDataException("电费系统返回空内容")
             // 掉线时可能被重定向到登录页，拿到的是 HTML 而不是 JSON

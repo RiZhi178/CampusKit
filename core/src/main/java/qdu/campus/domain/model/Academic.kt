@@ -105,6 +105,8 @@ data class WeekSchedule(
     val week: Int,
     val days: Map<Int, List<Course>>,
     val sections: List<ClassSection>,
+    /** 列头标注：假期「休」、调休「调」。文字信息而非颜色状态，普通日无条目。 */
+    val dayNotes: Map<Int, String> = emptyMap(),
 ) {
     fun coursesOf(day: Int): List<Course> = days[day].orEmpty()
 

@@ -17,6 +17,7 @@ import qdu.campus.platform.common.RemoteDataException
 import qdu.campus.platform.network.CookieBridge
 import qdu.campus.platform.network.HttpClientFactory
 import qdu.campus.platform.network.appJson
+import qdu.campus.platform.network.serverFailure
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -235,7 +236,7 @@ class BaoxiuApi @Inject constructor(
         val response = runCatching { http.client.newCall(request).execute() }
             .getOrElse { throw RemoteDataException("无法连接报修系统：${it.message}") }
         response.use {
-            if (!it.isSuccessful) throw RemoteDataException("报修系统返回 ${it.code}")
+            if (!it.isSuccessful) throw it.serverFailure("报修系统")
             val text = it.body?.string().orEmpty()
             if (text.isBlank()) throw RemoteDataException("报修系统返回空内容")
             if (text.trimStart().startsWith("<")) throw BaoxiuAuthException()

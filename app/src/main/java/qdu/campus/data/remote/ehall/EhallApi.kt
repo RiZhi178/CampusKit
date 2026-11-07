@@ -9,6 +9,7 @@ import qdu.campus.platform.common.EhallAuthException
 import qdu.campus.platform.common.RemoteDataException
 import qdu.campus.platform.network.HttpClientFactory
 import qdu.campus.platform.network.appJson
+import qdu.campus.platform.network.serverFailure
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerializationException
@@ -83,7 +84,7 @@ class EhallApi @Inject constructor(
             .getOrElse { throw RemoteDataException("无法连接办事大厅：${it.message}") }
 
         response.use {
-            if (!it.isSuccessful) throw RemoteDataException("办事大厅返回 ${it.code}")
+            if (!it.isSuccessful) throw it.serverFailure("办事大厅")
             val text = it.body.string()
             if (text.isBlank()) throw EhallAuthException("办事大厅返回空内容")
             // 被重定向到统一认证时拿到的是登录页 HTML

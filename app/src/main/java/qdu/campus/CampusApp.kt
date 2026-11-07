@@ -3,6 +3,11 @@ package qdu.campus
 import android.app.Application
 import android.util.Log
 import android.webkit.WebSettings
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import qdu.campus.data.local.seed.AssetSeeder
 import qdu.campus.platform.common.CrashLogger
 import qdu.campus.platform.network.HttpClientFactory
 import qdu.campus.platform.system.NoticeNotifier
@@ -23,6 +28,11 @@ class CampusApp : Application() {
     @Inject
     lateinit var sessionState: SessionRepository
 
+    @Inject
+    lateinit var assetSeeder: AssetSeeder
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onCreate() {
         super.onCreate()
         CrashLogger.install(this)
@@ -36,6 +46,9 @@ class CampusApp : Application() {
             .onFailure { Log.w(TAG, "Cookie 回灌失败", it) }
         // 回灌完立刻按本机是否有票定态，否则首页状态卡要等前台探测才从「未登录」改口
         sessionState.warmStart()
+        // 随包资产种子进 Room（本科课表 / 楼栋字典 / 校历规则）。指纹没变的学期直接跳过，
+        // 只有首装或资产更新才真正写库；失败不挡启动，页面按「暂无数据」处理，下次再试。
+        appScope.launch { assetSeeder.seedAll() }
     }
 
     private companion object {

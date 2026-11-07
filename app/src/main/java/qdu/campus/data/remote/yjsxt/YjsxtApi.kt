@@ -6,6 +6,8 @@ import qdu.campus.platform.common.RemoteDataException
 import qdu.campus.platform.common.YjsxtAuthException
 import qdu.campus.platform.network.HttpClientFactory
 import qdu.campus.platform.network.appJson
+import qdu.campus.platform.network.serverFailure
+import qdu.campus.platform.security.CredentialShape
 import qdu.campus.platform.security.CredentialStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -116,9 +118,10 @@ class YjsxtApi @Inject constructor(
 
         if (BuildConfig.DEBUG) {
             val cookie = runCatching { http.cookieBridge.cookieHeader(BASE_URL) }.getOrNull()
+            // 令牌前缀也是凭据的一部分，日志只报形态，够分清没存到、不是 JWT、还是已过期
             Log.d(
                 TAG,
-                "YjsxtApi.post token=${token?.take(12)}[${token?.length ?: 0}] " +
+                "YjsxtApi.post token=${CredentialShape.jwt(token)} " +
                     "cookieLen=${cookie?.length ?: 0} path=$path",
             )
         }
@@ -134,7 +137,7 @@ class YjsxtApi @Inject constructor(
                 throw sessionExpired()
             }
             if (!it.isSuccessful) {
-                throw RemoteDataException("研究生系统返回 ${it.code}")
+                throw it.serverFailure("研究生系统")
             }
             val text = it.body?.string().orEmpty()
             if (text.isBlank()) {

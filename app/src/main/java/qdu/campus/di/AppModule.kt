@@ -6,13 +6,17 @@ import qdu.campus.platform.network.CookieBridge
 import qdu.campus.platform.network.HttpClientFactory
 import qdu.campus.platform.security.CredentialStore
 import qdu.campus.platform.security.EncryptedCredentialStore
+import qdu.campus.data.local.db.CalendarDao
 import qdu.campus.data.local.db.CampusDatabase
+import qdu.campus.data.local.db.DormBuildingDao
 import qdu.campus.data.local.db.MIGRATION_1_2
 import qdu.campus.data.local.db.MIGRATION_2_3
 import qdu.campus.data.local.db.MIGRATION_3_4
+import qdu.campus.data.local.db.MIGRATION_4_5
 import qdu.campus.data.local.db.NoticeDao
 import qdu.campus.data.local.db.SyncDao
 import qdu.campus.data.local.db.TimetableDao
+import qdu.campus.data.local.db.UgTimetableDao
 import qdu.campus.data.local.preferences.DataStoreSettingsRepository
 import qdu.campus.data.remote.graduate.NoticeParser
 import qdu.campus.data.remote.jwc.JwcNoticeParser
@@ -54,7 +58,7 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): CampusDatabase =
         Room.databaseBuilder(context, CampusDatabase::class.java, CampusDatabase.NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .fallbackToDestructiveMigration()
             .build()
 
@@ -66,6 +70,15 @@ object AppModule {
 
     @Provides
     fun provideSyncDao(db: CampusDatabase): SyncDao = db.syncDao()
+
+    @Provides
+    fun provideUgTimetableDao(db: CampusDatabase): UgTimetableDao = db.ugTimetableDao()
+
+    @Provides
+    fun provideDormBuildingDao(db: CampusDatabase): DormBuildingDao = db.dormBuildingDao()
+
+    @Provides
+    fun provideCalendarDao(db: CampusDatabase): CalendarDao = db.calendarDao()
 
     @Provides
     @Singleton

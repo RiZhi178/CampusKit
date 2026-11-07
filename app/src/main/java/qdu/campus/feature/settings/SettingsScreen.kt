@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.ManageAccounts
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material.icons.outlined.Troubleshoot
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -60,8 +61,9 @@ import qdu.campus.platform.system.ExternalLauncher
 /**
  * 更多（原型屏 13）。分组：账户、学习空间、生活服务、外观、关于。
  *
- * 账户下只留两个入口：账号管理（退出登录与切换账号在账号二级页）与数据管理
- * （清除数据与导出日志收在同一个弹窗）。通知相关入口不在这里，筛选移到通知页本身。
+ * 账户下三个入口：账号管理（退出登录与切换账号在账号二级页）、数据管理
+ * （清除数据与导出日志收在同一个弹窗）与会话诊断（只报凭据形态）。
+ * 通知相关入口不在这里，筛选移到通知页本身。
  * 关于固定三项：检查更新、我要反馈、声明。
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,8 +118,15 @@ fun SettingsScreen(
                         subtitle = "清除缓存与数据、导出日志",
                         subtitleMaxLines = 1,
                         leading = Icons.Outlined.Storage,
-                        divider = false,
                         onClick = { showData = true },
+                    )
+                    ListRow(
+                        title = "会话诊断",
+                        subtitle = "只看凭据形态，不显示任何值",
+                        subtitleMaxLines = 1,
+                        leading = Icons.Outlined.Troubleshoot,
+                        divider = false,
+                        onClick = viewModel::openDiagnostics,
                     )
                 }
 
@@ -291,6 +300,37 @@ fun SettingsScreen(
                     text = "取消",
                     kind = QduButtonKind.Ghost,
                     onClick = { showData = false },
+                )
+            },
+        )
+    }
+
+    if (state.diagnostics != null) {
+        AlertDialog(
+            onDismissRequest = viewModel::dismissDiagnostics,
+            title = { Text("会话诊断") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 320.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "只报形态，不含凭据值。用来分清「没存到」「存的不是令牌」「令牌已过期」。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    state.diagnostics?.forEach { line ->
+                        Text(text = line, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            },
+            confirmButton = {
+                DialogButton(
+                    text = "知道了",
+                    kind = QduButtonKind.Primary,
+                    onClick = viewModel::dismissDiagnostics,
                 )
             },
         )

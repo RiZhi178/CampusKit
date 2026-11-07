@@ -5,6 +5,7 @@ import qdu.campus.platform.common.CsyyAuthException
 import qdu.campus.platform.common.RemoteDataException
 import qdu.campus.platform.network.HttpClientFactory
 import qdu.campus.platform.network.appJson
+import qdu.campus.platform.network.serverFailure
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -157,7 +158,7 @@ class CsyyApi @Inject constructor(
             .getOrElse { throw RemoteDataException("无法连接座位系统：${it.message}") }
 
         response.use {
-            if (!it.isSuccessful) throw RemoteDataException("座位系统返回 ${it.code}")
+            if (!it.isSuccessful) throw it.serverFailure("座位系统")
             val text = it.body?.string().orEmpty()
             if (text.isBlank()) throw RemoteDataException("座位系统返回空内容")
             // 掉线时可能被重定向到登录页，拿到的是 HTML 而不是 JSON

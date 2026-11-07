@@ -12,6 +12,7 @@ import qdu.campus.domain.repository.NoticeRepository
 import qdu.campus.domain.repository.SessionRepository
 import qdu.campus.domain.repository.SettingsRepository
 import qdu.campus.platform.common.CrashLogger
+import qdu.campus.platform.security.SessionDiagnostics
 import qdu.campus.platform.system.UpdateFetcher
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -29,6 +30,8 @@ data class SettingsUiState(
     val mode: AppearanceMode = AppearanceMode.SYSTEM,
     val message: String? = null,
     val update: UpdateCheckState = UpdateCheckState.Idle,
+    /** 非 null 时弹会话诊断窗。只含形态描述，不含任何凭据值。 */
+    val diagnostics: List<String>? = null,
 )
 
 /** 检查更新的状态机：由「检查更新」行触发，结果回 UI 决定提示还是弹窗。 */
@@ -58,6 +61,7 @@ class SettingsViewModel @Inject constructor(
     private val noticeRepository: NoticeRepository,
     private val database: CampusDatabase,
     private val updateFetcher: UpdateFetcher,
+    private val sessionDiagnostics: SessionDiagnostics,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SettingsUiState())
@@ -130,6 +134,20 @@ class SettingsViewModel @Inject constructor(
 
     fun dismissUpdate() {
         _state.value = _state.value.copy(update = UpdateCheckState.Idle)
+    }
+
+    /** 读加密存储要碰磁盘，放 IO；诊断本身不发请求、不改任何凭据。 */
+    fun openDiagnostics() {
+        viewModelScope.launch {
+            val lines = withContext(Dispatchers.IO) {
+                sessionDiagnostics.snapshot(_state.value.session)
+            }
+            _state.value = _state.value.copy(diagnostics = lines)
+        }
+    }
+
+    fun dismissDiagnostics() {
+        _state.value = _state.value.copy(diagnostics = null)
     }
 
     /**

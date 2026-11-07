@@ -434,6 +434,14 @@ private fun ScheduleGrid(
                                 color = scheme.primary,
                             )
                         }
+                        // 校历调停课标注：假期「休」、调休「调」。文字信息，不靠颜色说话
+                        schedule.dayNotes[day]?.let { note ->
+                            Text(
+                                text = note,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = scheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }

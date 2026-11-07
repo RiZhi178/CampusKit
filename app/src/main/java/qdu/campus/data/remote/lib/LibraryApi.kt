@@ -10,6 +10,7 @@ import qdu.campus.platform.common.RemoteDataException
 import qdu.campus.platform.network.CookieBridge
 import qdu.campus.platform.network.HttpClientFactory
 import qdu.campus.platform.network.appJson
+import qdu.campus.platform.network.serverFailure
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
@@ -149,7 +150,7 @@ class LibraryApi @Inject constructor(
 
         response.use {
             if (it.code == 401) throw LibraryAuthException()
-            if (!it.isSuccessful) throw RemoteDataException("图书馆检索返回 ${it.code}")
+            if (!it.isSuccessful) throw it.serverFailure("图书馆检索")
             val text = it.body?.string().orEmpty()
             // 会话没了：/oga/userinfo 回空体，业务接口可能被重定向成登录页 HTML
             if (text.isBlank() || text.trimStart().startsWith("<")) throw LibraryAuthException()

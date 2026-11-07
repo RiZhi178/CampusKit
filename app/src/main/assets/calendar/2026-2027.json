@@ -1,0 +1,21 @@
+{
+  "academicYear": "2026-2027",
+  "source": "jwc.qdu.edu.cn/info/1009/6459.htm（调课配对与作息换档）+ 校历数据 qdu_calendar_2026_2027.json（假期区间）",
+  "generatedAt": "2026-11-07",
+  "note": "日级调停课规则，启动时种子进 Room 的 calendar_days 表。HOLIDAY = 当天课全部停上；MAKEUP = 执行 followsDate 那天的教学安排（配对来自教务处通知原文，借的是 followsDate 所在教学周的课，不是调休日自己所在周的）。周末若落在假期区间内也要列出：周六日可能有排课，同样要停。",
+  "days": [
+    { "date": "2026-09-20", "kind": "MAKEUP", "name": "国庆调休", "followsDate": "2026-10-06" },
+    { "date": "2026-09-25", "kind": "HOLIDAY", "name": "中秋节" },
+    { "date": "2026-09-26", "kind": "HOLIDAY", "name": "中秋节" },
+    { "date": "2026-09-27", "kind": "HOLIDAY", "name": "中秋节" },
+    { "date": "2026-10-01", "kind": "HOLIDAY", "name": "国庆节" },
+    { "date": "2026-10-02", "kind": "HOLIDAY", "name": "国庆节" },
+    { "date": "2026-10-03", "kind": "HOLIDAY", "name": "国庆节" },
+    { "date": "2026-10-04", "kind": "HOLIDAY", "name": "国庆节" },
+    { "date": "2026-10-05", "kind": "HOLIDAY", "name": "国庆节" },
+    { "date": "2026-10-06", "kind": "HOLIDAY", "name": "国庆节" },
+    { "date": "2026-10-07", "kind": "HOLIDAY", "name": "国庆节" },
+    { "date": "2026-10-10", "kind": "MAKEUP", "name": "国庆调休", "followsDate": "2026-10-07" },
+    { "date": "2027-01-01", "kind": "HOLIDAY", "name": "元旦" }
+  ]
+}

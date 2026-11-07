@@ -2,10 +2,12 @@ package qdu.campus.feature.timetable
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import qdu.campus.data.local.db.CalendarDao
 import qdu.campus.platform.common.Formats
 import qdu.campus.platform.common.everyMinute
 import qdu.campus.domain.model.ClassSection
 import qdu.campus.domain.model.Course
+import qdu.campus.domain.model.DayOverride
 import qdu.campus.domain.model.NoScheduleCourse
 import qdu.campus.domain.model.SemesterOption
 import qdu.campus.domain.model.TimetableLevel
@@ -61,6 +63,7 @@ data class TimetableUiState(
 class TimetableViewModel @Inject constructor(
     private val repository: TimetableRepository,
     private val settings: SettingsRepository,
+    calendarDao: CalendarDao,
 ) : ViewModel() {
 
     private val useCase = BuildWeekScheduleUseCase()
@@ -78,7 +81,20 @@ class TimetableViewModel @Inject constructor(
     private var semesterId: String = ""
     private var lastLevel: TimetableLevel? = null
 
+    /** 校历调停课规则（种子进 Room 的那一份），两路课表共用同一套。 */
+    private var calendarOverrides: Map<LocalDate, DayOverride> = emptyMap()
+
     init {
+        viewModelScope.launch {
+            calendarDao.observeAll().collect { rows ->
+                calendarOverrides = rows.mapNotNull { row ->
+                    val date = runCatching { LocalDate.parse(row.date) }.getOrNull() ?: return@mapNotNull null
+                    val follows = row.followsDate?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+                    DayOverride(date = date, holiday = row.kind == "HOLIDAY", followsDate = follows)
+                }.associateBy { it.date }
+                recompute()
+            }
+        }
         viewModelScope.launch {
             settings.termStartDate.collect { value ->
                 startDate = value.takeIf { it.isNotBlank() }?.let {
@@ -225,7 +241,9 @@ class TimetableViewModel @Inject constructor(
             userPickedWeek -> _state.value.selectedWeek.coerceIn(1, max)
             else -> current.coerceIn(1, max)
         }
-        val schedule = useCase(courses, sections, selected)
+        // 该周的周一：调停课按日期换算，借课连教学周一起借（见 BuildWeekScheduleUseCase）
+        val weekStart = startDate?.let { WeekCalculator.mondayOf(it).plusWeeks((selected - 1).coerceAtLeast(0).toLong()) }
+        val schedule = useCase(courses, sections, selected, weekStart, calendarOverrides)
         _state.value = _state.value.copy(
             selectedWeek = selected,
             currentWeek = current,

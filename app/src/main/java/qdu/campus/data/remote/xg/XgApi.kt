@@ -7,6 +7,7 @@ import qdu.campus.domain.model.XgAwardPage
 import qdu.campus.platform.common.RemoteDataException
 import qdu.campus.platform.common.XgAuthException
 import qdu.campus.platform.network.HttpClientFactory
+import qdu.campus.platform.network.serverFailure
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -49,7 +50,7 @@ class XgApi @Inject constructor(
         response.use {
             // 跳票不在时站点会重定向到 authserver：落地的域不是 xg 就说明没有会话
             if (it.request.url.host != HOST) throw XgAuthException()
-            if (!it.isSuccessful) throw RemoteDataException("学工系统返回 ${it.code}")
+            if (!it.isSuccessful) throw it.serverFailure("学工系统")
             return it.body?.string().orEmpty()
         }
     }

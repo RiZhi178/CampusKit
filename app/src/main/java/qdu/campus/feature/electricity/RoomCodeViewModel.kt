@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import qdu.campus.data.local.assets.DormCatalogReader
+import qdu.campus.data.local.db.DormBuildingDao
 import qdu.campus.domain.repository.SettingsRepository
 import qdu.campus.domain.repository.ZzmpRepository
 import qdu.campus.platform.common.RoomCodeRejectedException
@@ -24,21 +24,21 @@ import javax.inject.Inject
  *
  * 查到的账户信息不在这一页摆：绑定成功就退回宿舍电费页，由那一页负责显示与刷新。
  *
- * 楼栋候选来自随包的报修系统楼栋字典（[DormCatalogReader]，166 栋 / 8 校区），
+ * 楼栋候选来自报修系统楼栋字典（启动时随包资产种进 Room，92 栋 / 8 校区，2026-11-07 AVD 实测），
  * 简称推不出来的楼栋照常给手填框。
  */
 @HiltViewModel
 class RoomCodeViewModel @Inject constructor(
     private val repository: ZzmpRepository,
     private val settings: SettingsRepository,
-    catalogReader: DormCatalogReader,
+    dormBuildingDao: DormBuildingDao,
 ) : ViewModel() {
 
     data class UiState(
         val checking: Boolean = false,
         /** 服务端判定「这个编号没有账户」的原文（已翻成人话）。null 表示没被拒。 */
         val rejected: String? = null,
-        /** 随包楼栋字典；读不到就是空列表，页面退回纯手填。 */
+        /** 楼栋字典；库里还没有（种子未完成）就是空列表，页面退回纯手填。 */
         val catalog: List<CatalogCampus> = emptyList(),
     )
 
@@ -47,7 +47,17 @@ class RoomCodeViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            _state.value = _state.value.copy(catalog = catalogReader.campuses())
+            val rows = runCatching { dormBuildingDao.loadAll() }.getOrDefault(emptyList())
+            val catalog = rows
+                .groupBy { it.campusId }
+                .map { (_, buildings) ->
+                    CatalogCampus(
+                        campusId = buildings.first().campusId,
+                        campus = buildings.first().campus,
+                        buildings = buildings.map { CatalogBuilding(it.buildingId, it.name, it.code) },
+                    )
+                }
+            _state.value = _state.value.copy(catalog = catalog)
         }
     }
 
