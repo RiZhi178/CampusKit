@@ -58,7 +58,7 @@ android {
         // 1.0.0 是首个正式版，不带阶段后缀；alpha / beta 只在开外测时填回来。
         val appMajor = 1
         val appMinor = 0
-        val appPatch = 0
+        val appPatch = 1
         val appStage = ""
         versionCode = appMajor * 10_000 + appMinor * 1_000 + appPatch
         versionName = "$appMajor.$appMinor.$appPatch" + if (appStage.isEmpty()) "" else "-$appStage"
