@@ -113,6 +113,11 @@ jobs:
         id: term
         run: |
           ID="${{ steps.scan.outputs.semester_id }}"
+          if [ -z "$ID" ]; then
+            echo "has=false" >> "$GITHUB_OUTPUT"
+            echo "没有新学期，跳过 term-start 检查"
+            exit 0
+          fi
           if jq -e --arg id "$ID" 'has($id)' tools/term-starts.json > /dev/null 2>&1; then
             echo "has=true" >> "$GITHUB_OUTPUT"
             echo "term_start=$(jq -r --arg id "$ID" '.[$id]' tools/term-starts.json)" >> "$GITHUB_OUTPUT"
