@@ -80,6 +80,32 @@ jobs:
           echo "::error::教务处列表页连续 3 次扫描失败，检测链路挂了，人工介入"
           exit 1
 
+      # Runner 在境外，校方站点本来就可能连不上（本文件开头「已知风险」那条）。
+      # 失败时把 DNS / TCP / TLS / node fetch 的实况一次性打进日志，下次不用再猜。
+      - name: 诊断：扫描失败时的网络实况
+        if: failure()
+        run: |
+          set +e
+          echo "::group::DNS 与解析器"
+          getent hosts jwc.qdu.edu.cn || echo "getent 解析不到 jwc.qdu.edu.cn"
+          cat /etc/resolv.conf
+          echo "::endgroup::"
+          echo "::group::curl 直连（默认 / IPv4 / IPv6）"
+          for opt in "" "-4" "-6"; do
+            echo "--- curl ${opt:-默认} ---"
+            curl -sS $opt -o /dev/null -m 20 -A "Mozilla/5.0" \
+              -w 'http=%{http_code} dns=%{time_namelookup}s connect=%{time_connect}s tls=%{time_appconnect}s total=%{time_total}s\n' \
+              https://jwc.qdu.edu.cn/xxgk/kcap.htm
+          done
+          echo "::endgroup::"
+          echo "::group::node fetch 的 cause"
+          node -e "
+          fetch('https://jwc.qdu.edu.cn/xxgk/kcap.htm', { headers: { 'User-Agent': 'Mozilla/5.0' } })
+            .then((r) => console.log('OK http=' + r.status))
+            .catch((e) => console.log('FAIL', e.message, '| cause:', e.cause?.code, e.cause?.message, e.cause?.hostname));
+          "
+          echo "::endgroup::"
+
       - name: 查 term-start 是否已由校历链路就绪
         id: term
         run: |

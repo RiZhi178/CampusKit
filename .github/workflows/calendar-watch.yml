@@ -71,6 +71,31 @@ jobs:
           echo "::error::校历栏目连续 3 次扫描失败，人工介入"
           exit 1
 
+      # 同 kcap-watch：失败时把 DNS / TCP / TLS / node fetch 的实况打进日志
+      - name: 诊断：扫描失败时的网络实况
+        if: failure()
+        run: |
+          set +e
+          echo "::group::DNS 与解析器"
+          getent hosts jwc.qdu.edu.cn || echo "getent 解析不到 jwc.qdu.edu.cn"
+          cat /etc/resolv.conf
+          echo "::endgroup::"
+          echo "::group::curl 直连（默认 / IPv4 / IPv6）"
+          for opt in "" "-4" "-6"; do
+            echo "--- curl ${opt:-默认} ---"
+            curl -sS $opt -o /dev/null -m 20 -A "Mozilla/5.0" \
+              -w 'http=%{http_code} dns=%{time_namelookup}s connect=%{time_connect}s tls=%{time_appconnect}s total=%{time_total}s\n' \
+              https://jwc.qdu.edu.cn/xl.htm
+          done
+          echo "::endgroup::"
+          echo "::group::node fetch 的 cause"
+          node -e "
+          fetch('https://jwc.qdu.edu.cn/xl.htm', { headers: { 'User-Agent': 'Mozilla/5.0' } })
+            .then((r) => console.log('OK http=' + r.status))
+            .catch((e) => console.log('FAIL', e.message, '| cause:', e.cause?.code, e.cause?.message, e.cause?.hostname));
+          "
+          echo "::endgroup::"
+
       - name: 无新学年则到此为止
         if: steps.scan.outputs.found != 'true'
         run: echo "校历栏目最新一篇已在库，无事可做"

@@ -150,6 +150,9 @@ try {
     process.exit(1);
   }
 } catch (e) {
-  console.error(`[calendar-watch] ${e.message}`);
+  // undici 的 fetch 失败只给一句 "fetch failed"，真正原因在 cause 里（ENOTFOUND / 连接超时 / 证书）
+  const c = e?.cause;
+  const detail = c ? [c.code, c.message, c.hostname].filter(Boolean).join(' ') : '';
+  console.error(`[calendar-watch] ${e.message}${detail ? `（cause: ${detail}）` : ''}`);
   process.exit(2);
 }
