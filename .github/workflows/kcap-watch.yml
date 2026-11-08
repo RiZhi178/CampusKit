@@ -6,8 +6,9 @@ name: kcap-watch
 #   ② 发现新学期文章后先查 tools/term-starts.json（校历链路维护的第一周周一映射）：
 #      有 → 全自动下载 xlsx、清洗、过门禁、开 PR，不需要任何人；
 #      没有（校历还没解析上线）→ 开 issue 降级人工：评论 `term-start: YYYY-MM-DD` 兜底；
-#   ③ PR 合并进 main → 自动版本位 bump（走第二位）+ 打 v* tag，
-#      tag 由 RELEASE_PAT 推送以触发 ci.yml 的 verify + release 作业出签名包。
+#   ③ PR 合并进 main → 按 app/build.gradle.kts 里已声明的版本出包：该版本 tag 还没打过
+#      就直接打它（不跳位），打过才把第二位 +1 再打；tag 由 RELEASE_PAT 推送，
+#      以触发 ci.yml 的 verify + release 作业出签名包。
 #
 # term-start 的正源是校历（calendar-watch 链路维护），不允许从课表数据猜。
 #
@@ -294,26 +295,54 @@ jobs:
             exit 1
           }
 
-      - name: 计算新版本位
-        id: bump
-        run: |
-          NEW_TAG=$(node tools/release-bump.mjs | tail -1)
-          echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
-          echo "新版本：$NEW_TAG"
-
-      - name: 提交版本位并推 tag（PAT 推送以触发 ci.yml 的 release 作业）
+      - name: 让 git 改用 PAT（GITHUB_TOKEN 推的 tag 不触发 ci.yml）
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
-          NEW_TAG: ${{ steps.bump.outputs.tag }}
         run: |
           # checkout 注入的是 GITHUB_TOKEN，用它推的 tag 不会触发别的 workflow（GitHub 的既定行为）。
-          # 改成 PAT：让 gh 当 git 的 credential helper，并清掉 checkout 留下的 extraheader。
+          # 换成 PAT：让 gh 当 git 的 credential helper，并清掉 checkout 留下的 extraheader。
           gh auth setup-git
           git config --unset-all "http.https://github.com/.extraheader" || true
+
+      - name: 定版本号（已声明的版本还没出过包就直接用它）
+        id: bump
+        run: |
+          # 发哪个版本以 app/build.gradle.kts 的版本位为准：
+          #   - 它的 tag 还没打过（例如 1.0.1 只改了版本位、还没出过包）→ 直接按它出，不跳位；
+          #   - 已经打过（这一版发过了）→ 才走 release-bump 把第二位 +1。
+          CUR=$(sed -n -e 's/^ *val appMajor = \([0-9]*\).*/\1/p' \
+                        -e 's/^ *val appMinor = \([0-9]*\).*/\1/p' \
+                        -e 's/^ *val appPatch = \([0-9]*\).*/\1/p' app/build.gradle.kts | paste -sd. -)
+          if [ -z "$CUR" ]; then
+            echo "::error::从 app/build.gradle.kts 读不出 appMajor/appMinor/appPatch，版本位定义挪过了，先人工看一眼"
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/v$CUR" >/dev/null 2>&1; then
+            TAG=$(node tools/release-bump.mjs | tail -1)
+            echo "v$CUR 已经发过，按新学期资产合并 bump 到 $TAG"
+            echo "bumped=true" >> "$GITHUB_OUTPUT"
+          else
+            TAG="v$CUR"
+            echo "v$CUR 还没打过 tag，直接按已声明的版本出包"
+            echo "bumped=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "本次发布：$TAG"
+
+      - name: 推 tag（PAT 推送以触发 ci.yml 的 release 作业）
+        env:
+          NEW_TAG: ${{ steps.bump.outputs.tag }}
+          BUMPED: ${{ steps.bump.outputs.bumped }}
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
           git config user.name "kcap-watch"
           git config user.email "actions@users.noreply.github.com"
-          git add app/build.gradle.kts
-          git commit -m "chore: 版本 bump 到 ${NEW_TAG#v}（新学期资产合并，走第二位）"
-          git push origin "HEAD:main"
+          if [ "$BUMPED" = "true" ]; then
+            git add app/build.gradle.kts
+            git commit -m "chore: 版本 bump 到 ${NEW_TAG#v}（新学期资产合并，走第二位）"
+            git push origin "HEAD:main"
+          else
+            echo "版本位没动，不产生新提交，只给当前 main 打 tag"
+          fi
           git tag "$NEW_TAG"
           git push origin "$NEW_TAG"
