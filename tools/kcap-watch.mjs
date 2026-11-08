@@ -22,6 +22,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
+import dns from 'node:dns';
+
+// 校方站点对外先给 AAAA，而 CI runner 只有 IPv4 出口：不强制 IPv4 会一路 ETIMEDOUT
+// （runner 上实测：curl 默认与 -4 都是 200，-6 立刻失败，node fetch 则卡到超时）。
+dns.setDefaultResultOrder('ipv4first');
 
 const JWC = 'https://jwc.qdu.edu.cn';
 const LIST_PATH = '/xxgk/kcap.htm';
