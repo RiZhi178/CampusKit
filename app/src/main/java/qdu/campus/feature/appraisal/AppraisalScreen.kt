@@ -1,6 +1,7 @@
 package qdu.campus.feature.appraisal
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -21,7 +22,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -36,6 +40,13 @@ import qdu.campus.platform.common.Formats
 import qdu.campus.platform.designsystem.Banner
 import qdu.campus.platform.designsystem.ListRow
 import qdu.campus.platform.designsystem.PlaceholderBlock
+import qdu.campus.platform.designsystem.AppLoading
+import qdu.campus.feature.xgcommon.XgMintPane
+import qdu.campus.feature.xgcommon.XgMintWebView
+import qdu.campus.feature.xgcommon.XG_MINT_OVERALL_TIMEOUT_MS
+import qdu.campus.feature.web.CampusService
+import qdu.campus.feature.web.ServiceTarget
+import qdu.campus.platform.designsystem.SessionGate
 import qdu.campus.platform.designsystem.QduBackButton
 import qdu.campus.platform.designsystem.QduCard
 import qdu.campus.platform.designsystem.listBottomGuard
@@ -55,6 +66,7 @@ fun AppraisalScreen(
     viewModel: AppraisalViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val syncUrl = remember { (CampusService.XG_AWARD.target as? ServiceTarget.InternalWeb)?.url }
     val fetchedAt = state.fetchedAt
     val freshness = when {
         state.loading -> "正在读取…"
@@ -79,6 +91,7 @@ fun AppraisalScreen(
         },
         contentWindowInsets = WindowInsets.systemBars.union(WindowInsets.ime),
     ) { padding ->
+        Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -94,13 +107,17 @@ fun AppraisalScreen(
             )
 
             when {
-                state.needsLogin -> PlaceholderBlock(
-                    title = "学工系统还没有会话",
-                    description = "学工的分系统要先在门户里点一次才拿得到会话。" +
-                        "进去点一次「评奖评优管理」，回到这一页就自动读取。",
-                    actionLabel = "去学工系统",
-                    onAction = onOpenWebLogin,
+                state.syncing -> XgMintPane()
+
+                state.needsLogin -> SessionGate(
+                    title = "评奖评优需要先登录",
+                    reason = "去学工系统里点一下「评奖评优」，\n回来这里就能查看了。",
+                    onLogin = onOpenWebLogin,
+                    loginLabel = "去学工系统",
+                    onRetry = viewModel::refresh,
                 )
+
+                state.loading -> AppLoading(modifier = Modifier.fillMaxSize())
 
                 else -> {
                     val page = state.page
@@ -115,6 +132,24 @@ fun AppraisalScreen(
             }
 
             Spacer(Modifier.height(listBottomGuard()))
+        }
+
+        // 铸会话总时长兜底：到点换登录引导，不让页面一直转
+        LaunchedEffect(state.syncing) {
+            if (state.syncing) {
+                delay(XG_MINT_OVERALL_TIMEOUT_MS)
+                viewModel.syncTimedOut()
+            }
+        }
+
+        if (state.syncing && syncUrl != null) {
+            XgMintWebView(
+                url = syncUrl,
+                script = appraisalMintScript,
+                onPageFinished = viewModel::onMintPageFinished,
+                onError = { viewModel.onMintFailed() },
+            )
+        }
         }
     }
 }
@@ -211,3 +246,27 @@ private fun detailOf(row: List<String>, headers: List<String>): String =
         }
         .filter { it.isNotEmpty() }
         .joinToString(" · ")
+
+/** 替点门户「办事大厅」里的「评奖评优管理」磁贴铸会话；选择器用实测稳定属性，不靠文案猜（见 xg.md §二·补）。 */
+private val appraisalMintScript: String = """
+(function(){
+  if (window.__qduMint) return;
+  window.__qduMint = 1;
+  if (!window.__qduShim) {
+    window.__qduShim = 1;
+    window.open = function(u){ if (u) location.assign(String(u)); return null; };
+  }
+  var done = new RegExp('/apps/PJPY/', 'i');
+  var tries = 0;
+  var timer = setInterval(function(){
+    tries++;
+    if (done.test(location.href) || tries > 40) { clearInterval(timer); return; }
+    var tile = document.querySelector('[data-key="App_PJPY"]');
+    if (tile) { clearInterval(timer); tile.click(); return; }
+    if (!window.__qduHall) {
+      var hall = document.querySelector('a[data-id="bsdt"]');
+      if (hall) { window.__qduHall = 1; hall.click(); }
+    }
+  }, 700);
+})();
+"""

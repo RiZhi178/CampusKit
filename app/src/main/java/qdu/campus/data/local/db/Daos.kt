@@ -62,9 +62,6 @@ interface TimetableDao {
     @Query("DELETE FROM sections")
     suspend fun clearSectionsAll()
 
-    @Query("DELETE FROM terms")
-    suspend fun clearTerms()
-
     /**
      * 全量覆盖：删除该学期旧记录后整体写入，放在同一事务里，
      * 避免刷新过程中页面读到半份数据。
@@ -144,9 +141,16 @@ interface UgTimetableDao {
     suspend fun loadBySemester(semesterId: String): List<UgTimetableEntryEntity>
 
     @Query(
-        "SELECT DISTINCT className FROM ug_timetable_entries WHERE semesterId = :semesterId ORDER BY className"
+        "SELECT DISTINCT className, college FROM ug_timetable_entries " +
+            "WHERE semesterId = :semesterId ORDER BY className",
     )
-    suspend fun classNames(semesterId: String): List<String>
+    suspend fun classDirectory(semesterId: String): List<UgClassRef>
+
+    @Query(
+        "SELECT DISTINCT name FROM ug_timetable_entries " +
+            "WHERE semesterId = :semesterId AND className = :className ORDER BY name",
+    )
+    suspend fun courseNamesOfClass(semesterId: String, className: String): List<String>
 
     @Query("SELECT DISTINCT semesterId FROM ug_timetable_entries ORDER BY semesterId DESC LIMIT 1")
     suspend fun latestSemester(): String?
@@ -213,4 +217,10 @@ data class UgSemesterMeta(
     val id: String,
     val name: String?,
     val startDate: String?,
+)
+
+/** 本科班级目录投影：勾选列表用，学院来自清洗阶段对照专业设置表的归类。 */
+data class UgClassRef(
+    val className: String,
+    val college: String,
 )

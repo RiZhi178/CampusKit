@@ -62,7 +62,7 @@ import qdu.campus.platform.system.ExternalLauncher
  * 更多（原型屏 13）。分组：账户、学习空间、生活服务、外观、关于。
  *
  * 账户下三个入口：账号管理（退出登录与切换账号在账号二级页）、数据管理
- * （清除数据与导出日志收在同一个弹窗）与会话诊断（只报凭据形态）。
+ * （清除数据与导出日志收在同一个弹窗）与会话诊断（只报各系统登录状态）。
  * 通知相关入口不在这里，筛选移到通知页本身。
  * 关于固定三项：检查更新、我要反馈、声明。
  */
@@ -122,7 +122,7 @@ fun SettingsScreen(
                     )
                     ListRow(
                         title = "会话诊断",
-                        subtitle = "只看凭据形态，不显示任何值",
+                        subtitle = "只看登录状态，不显示账号密码",
                         subtitleMaxLines = 1,
                         leading = Icons.Outlined.Troubleshoot,
                         divider = false,
@@ -132,21 +132,23 @@ fun SettingsScreen(
 
                 GroupHead(text = "学习空间")
                 QduCard(padded = false) {
-                    listOf(
+                    val services = listOf(
                         CampusService.XG,
                         CampusService.XG_AWARD,
+                        CampusService.XG_LEAVE,
                         CampusService.LIBRARY_SEAT,
                         CampusService.LIBRARY,
-                    ).forEachIndexed { index, service ->
-                            ListRow(
-                                title = service.title,
-                                subtitle = service.subtitle,
-                                subtitleMaxLines = 1,
-                                leading = service.icon,
-                                divider = index < 3,
-                                onClick = { onOpenService(service) },
-                            )
-                        }
+                    )
+                    services.forEachIndexed { index, service ->
+                        ListRow(
+                            title = service.title,
+                            subtitle = service.subtitle,
+                            subtitleMaxLines = 1,
+                            leading = service.icon,
+                            divider = index < services.lastIndex,
+                            onClick = { onOpenService(service) },
+                        )
+                    }
                 }
 
                 GroupHead(text = "生活服务")
@@ -317,7 +319,7 @@ fun SettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Text(
-                        text = "只报形态，不含凭据值。用来分清「没存到」「存的不是令牌」「令牌已过期」。",
+                        text = "各系统当前的登录状态。某个功能打不开时，先看这里是不是未登录。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

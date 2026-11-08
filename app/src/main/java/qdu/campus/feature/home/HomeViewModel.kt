@@ -15,11 +15,15 @@ import qdu.campus.domain.repository.TimetableRepository
 import qdu.campus.domain.usecase.WeekCalculator
 import qdu.campus.feature.web.CampusService
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import qdu.campus.platform.system.UpdateFetcher
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -38,6 +42,15 @@ data class HomeUiState(
     val isCampusWifi: Boolean = false,
     val isRefreshing: Boolean = false,
     val ssid: String? = null,
+    /** 有比本机更新的正式版时给横幅；用户点「忽略」后同版本不再弹。 */
+    val updateBanner: UpdateBanner? = null,
+)
+
+/** 首页顶部的更新提醒。tag 是 GitHub release 的 tag（v1.1.0），忽略按 tag 记。 */
+data class UpdateBanner(
+    val tag: String,
+    val versionName: String,
+    val url: String,
 )
 
 @HiltViewModel
@@ -48,6 +61,7 @@ class HomeViewModel @Inject constructor(
     private val environmentReader: NetworkEnvironmentReader,
     private val settings: SettingsRepository,
     private val profile: ProfileRepository,
+    private val updateFetcher: UpdateFetcher,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(HomeUiState())
@@ -99,6 +113,48 @@ class HomeViewModel @Inject constructor(
             }
         }
         refreshEnvironment()
+        checkForUpdate()
+    }
+
+    /**
+     * 启动静默查一次 GitHub releases/latest（匿名 60 次/小时的限额对个位数用户足够）。
+     * 比较对象是版本名的前三位（1.0.1），tag 是 v1.1.0 之类；已有更新版本
+     * 且没被本机忽略过才给横幅。失败一律静默——检查更新不构成首页可报的错。
+     */
+    private fun checkForUpdate() {
+        viewModelScope.launch {
+            val outcome = withContext(Dispatchers.IO) { updateFetcher.fetchLatest() }
+            val latest = (outcome as? UpdateFetcher.Outcome.Success)?.release ?: return@launch
+            val current = semverOf(currentVersionName()) ?: return@launch
+            val newer = semverOf(latest.version.removePrefix("v")) ?: return@launch
+            if (listOf(0, 1, 2).none { newer[it] > current[it] }) return@launch
+            val dismissed = settings.updateDismissedTag.first()
+            if (dismissed == latest.version) return@launch
+            _state.value = _state.value.copy(
+                updateBanner = UpdateBanner(
+                    tag = latest.version,
+                    versionName = latest.version.removePrefix("v"),
+                    url = latest.url,
+                ),
+            )
+        }
+    }
+
+    /** 用户点「忽略」：按 tag 记住，同版本不再弹；比它更新的版本照常提醒。 */
+    fun dismissUpdateBanner() {
+        val banner = _state.value.updateBanner ?: return
+        _state.value = _state.value.copy(updateBanner = null)
+        viewModelScope.launch { settings.setUpdateDismissedTag(banner.tag) }
+    }
+
+    private fun currentVersionName(): String =
+        updateFetcher.currentVersion().substringBefore('(').trim()
+
+    /** 「1.0.1 (10001)」→ [1, 0, 1]；解析不出返回 null，不硬比。 */
+    private fun semverOf(text: String): List<Int>? {
+        val parts = text.trim().split('.')
+        if (parts.size < 3) return null
+        return parts.take(3).map { it.toIntOrNull() ?: return null }
     }
 
     /**

@@ -6,6 +6,8 @@ import qdu.campus.domain.model.Seat
 import qdu.campus.domain.model.SeatReservation
 import qdu.campus.domain.model.SeatRoom
 import qdu.campus.domain.model.SeatStatus
+import qdu.campus.domain.model.SessionState
+import qdu.campus.domain.repository.SessionRepository
 import qdu.campus.domain.repository.SeatRepository
 import qdu.campus.domain.usecase.SeatAvailability
 import qdu.campus.domain.usecase.SeatLabel
@@ -70,6 +72,8 @@ data class SeatUiState(
     /** 取消/提前离开失败时的弹窗正文；写操作失败只弹窗，不挂顶部横幅。 */
     val actionFailure: String? = null,
     val loggedOut: Boolean = false,
+    /** 统一认证会话状态；非 Valid 一律门禁——房间列表公开也不给未登录用户看。 */
+    val session: SessionState = SessionState.Unknown,
 ) {
     val freeCount: Int get() = seats.count { it.status == SeatStatus.Free }
 }
@@ -77,10 +81,21 @@ data class SeatUiState(
 @HiltViewModel
 class SeatViewModel @Inject constructor(
     private val repository: SeatRepository,
+    sessionRepository: SessionRepository,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(SeatUiState())
     val state: StateFlow<SeatUiState> = _state.asStateFlow()
+
+    init {
+        // 门禁以统一认证会话为准：房间列表公开可读，但不能因为「数据加载成功」就放行
+        viewModelScope.launch {
+            sessionRepository.state.collect { session ->
+                _state.update { it.copy(session = session) }
+            }
+        }
+    }
+
 
     /**
      * 每次拉座位都记一个序号。用户连着换房间或日期时，旧请求回来得晚也不能盖掉新选择，

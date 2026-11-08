@@ -13,6 +13,7 @@ import qdu.campus.data.local.db.MIGRATION_1_2
 import qdu.campus.data.local.db.MIGRATION_2_3
 import qdu.campus.data.local.db.MIGRATION_3_4
 import qdu.campus.data.local.db.MIGRATION_4_5
+import qdu.campus.data.local.db.MIGRATION_5_6
 import qdu.campus.data.local.db.NoticeDao
 import qdu.campus.data.local.db.SyncDao
 import qdu.campus.data.local.db.TimetableDao
@@ -58,7 +59,7 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): CampusDatabase =
         Room.databaseBuilder(context, CampusDatabase::class.java, CampusDatabase.NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .fallbackToDestructiveMigration()
             .build()
 

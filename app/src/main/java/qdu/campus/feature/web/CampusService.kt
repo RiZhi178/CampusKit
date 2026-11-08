@@ -214,6 +214,17 @@ enum class CampusService(
         userAgent = XG_DESKTOP_UA,
         nativeRoute = Routes.XG_AWARD,
     ),
+    XG_LEAVE(
+        id = "xg-leave",
+        title = "日常请假",
+        subtitle = "请假申请、进度与撤销",
+        // 与评奖评优同理：会话只由门户页面签发跳票，直达子页只复用。
+        // 原生页缺会话时回到学工门户，进去手点一次「日常请假」。
+        target = ServiceTarget.InternalWeb(XG_CAS_BRIDGE, WebDomain.XG),
+        scriptInjection = XG_POPUP_SHIM,
+        userAgent = XG_DESKTOP_UA,
+        nativeRoute = Routes.XG_LEAVE,
+    ),
     LIBRARY_SEAT(
         id = "csyy",
         title = "预约座位",
@@ -269,9 +280,11 @@ enum class CampusService(
          * 首页「常用」网格的默认四卡，顺序即展示顺序。
          * 打水、开空调、洗衣服三卡已由首页顶部的通栏扫码大卡取代（PRD F2-6），
          * 老用户 DataStore 里存下的 water / ac / laundry id 会在 [resolveHomeCards] 里被跳过。
+         * 默认第四卡是预约座位。办事大厅多数功能已被学工系统替代，不再默认上首页，
+         * 但仍留在服务清单里——要用的人从「常用卡片」编辑页的「可添加」自行加回来。
          */
         val homeCards: List<CampusService> = listOf(
-            BATH, CHECK_IN, ELECTRICITY, EHALL,
+            BATH, CHECK_IN, ELECTRICITY, LIBRARY_SEAT,
         )
 
         /**

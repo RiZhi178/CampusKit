@@ -57,6 +57,8 @@ import qdu.campus.feature.electricity.DormElectricityScreen
 import qdu.campus.feature.electricity.RoomCodeScreen
 import qdu.campus.feature.home.HomeCardEditScreen
 import qdu.campus.feature.home.HomeScreen
+import qdu.campus.feature.leave.LeaveFormScreen
+import qdu.campus.feature.leave.LeaveListScreen
 import qdu.campus.feature.library.LibraryScreen
 import qdu.campus.feature.network.NetworkScreen
 import qdu.campus.feature.notice.NoticeDetailScreen
@@ -166,10 +168,14 @@ fun AppNavHost() {
                 popExitTransition = TabExit,
             ) {
                 TimetableScreen(
-                    onOpenLogin = { navController.navigate(Routes.YJSXT_LOGIN) },
+                    // 课表是一级界面不设门禁；研究生课表的单独登录由页内提示引导
+                    onOpenGraduateLogin = { navController.navigate(Routes.YJSXT_LOGIN) },
+                    // 课表登录的目的只有一个：拿到本科生的具体课表数据（强智自己的
+                    // 账号体系，与统一认证无关；统一认证只管门禁权限校验）。只负责把
+                    // 页面打开，落在系统首页的登录墙上，账号密码由用户自己在页面里填。
                     onOpenStudentLogin = {
                         navController.navigate(
-                            Routes.webUrl("https://xjw.qdu.edu.cn/jsxsd/login", "本科教务系统登录"),
+                            Routes.webUrl("https://xjw.qdu.edu.cn/jsxsd/", "本科教务系统登录"),
                         )
                     },
                 )
@@ -298,6 +304,36 @@ fun AppNavHost() {
                 AppraisalScreen(
                     onBack = { navController.popBackStack() },
                     // 阶段一不自动补会话：缺会话时送回学工门户，那一下卡片由人自己点
+                    onOpenWebLogin = {
+                        navController.navigate(Routes.web(CampusService.XG.id))
+                    },
+                )
+            }
+
+            composable(Routes.XG_LEAVE) {
+                LeaveListScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenDetail = { id -> navController.navigate(Routes.leaveForm(id)) },
+                    onOpenForm = { navController.navigate(Routes.leaveForm()) },
+                    // 会话由列表页静默铸；补不到时送回学工门户手点一次「日常请假」磁贴，回来自动重试
+                    onOpenWebLogin = { navController.navigate(Routes.web(CampusService.XG.id)) },
+                )
+            }
+
+            composable(
+                route = Routes.XG_LEAVE_FORM,
+                arguments = listOf(
+                    navArgument("id") {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
+            ) {
+                LeaveFormScreen(
+                    onBack = { navController.popBackStack() },
+                    // 提交 / 撤销成功后退回列表，列表 ON_RESUME 自己重读拿到最新记录。
+                    onSubmitted = { navController.popBackStack() },
+                    onRevoked = { navController.popBackStack() },
                     onOpenWebLogin = {
                         navController.navigate(Routes.web(CampusService.XG.id))
                     },

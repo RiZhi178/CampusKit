@@ -45,6 +45,8 @@ data class KcapTimetables(
 @Serializable
 data class KcapClass(
     val name: String,
+    /** 归属学院（对照教务处专业设置表，清洗阶段分好）；空串 = 未分类（教学班号类噪声班名）。 */
+    val college: String = "",
     val lessons: List<KcapLesson> = emptyList(),
 )
 

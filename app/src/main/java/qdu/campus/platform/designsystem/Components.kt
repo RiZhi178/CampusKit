@@ -160,6 +160,29 @@ fun InlineNotice(
     }
 }
 
+/** 全页/区块级居中的占位壳：把 [PlaceholderBlock] 摆进中央，空态与登录门禁统一用这个形态。 */
+@Composable
+fun CenteredPlaceholder(
+    title: String,
+    description: String? = null,
+    modifier: Modifier = Modifier,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        PlaceholderBlock(
+            title = title,
+            description = description,
+            modifier = Modifier,
+            actionLabel = actionLabel,
+            onAction = onAction,
+        )
+    }
+}
+
 /** 空态与错误态共用：一句说明 + 可选动作。 */
 @Composable
 fun PlaceholderBlock(

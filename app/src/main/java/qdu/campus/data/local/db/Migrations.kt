@@ -97,3 +97,13 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         )
     }
 }
+
+/**
+ * v6 本科课表加班级归属学院列。旧行补空串，启动种子按资产指纹判定后整学期重写，
+ * 重写完成前该学期按「未分类」显示，不影响其余功能。
+ */
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE `ug_timetable_entries` ADD COLUMN `college` TEXT NOT NULL DEFAULT ''")
+    }
+}

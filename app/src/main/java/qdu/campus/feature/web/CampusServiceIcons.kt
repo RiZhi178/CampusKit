@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.EventSeat
 import androidx.compose.material.icons.outlined.LocalLibrary
@@ -26,6 +27,7 @@ val CampusService.icon: ImageVector
         CampusService.EHALL -> Icons.Outlined.AccountBalance
         CampusService.XG -> Icons.Outlined.School
         CampusService.XG_AWARD -> Icons.Outlined.WorkspacePremium
+        CampusService.XG_LEAVE -> Icons.Outlined.CalendarMonth
         CampusService.LIBRARY_SEAT -> Icons.Outlined.EventSeat
         CampusService.REPAIR -> Icons.Outlined.Build
         CampusService.LIBRARY -> Icons.Outlined.LocalLibrary

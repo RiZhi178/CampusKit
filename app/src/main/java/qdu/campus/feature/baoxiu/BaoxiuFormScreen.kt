@@ -57,7 +57,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import qdu.campus.platform.designsystem.AppLoading
 import qdu.campus.platform.designsystem.ListRow
-import qdu.campus.platform.designsystem.PlaceholderBlock
+import qdu.campus.platform.designsystem.SessionGate
 import qdu.campus.platform.designsystem.QduButton
 import qdu.campus.platform.designsystem.QduButtonKind
 import qdu.campus.platform.designsystem.SectionCard
@@ -126,20 +126,12 @@ fun BaoxiuFormScreen(
                 .padding(padding),
         ) {
             when {
-                state.loginRequired -> Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(24.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    PlaceholderBlock(
-                        title = "需要重新登录报修系统",
-                        description = "统一认证会话过期后，报修接口会拒绝请求。",
-                        actionLabel = "去登录",
-                        onAction = onOpenWebLogin,
-                    )
-                }
+                state.loginRequired -> SessionGate(
+                    title = "宿舍报修需要先登录",
+                    reason = "登录后就可以提交报修了。",
+                    onLogin = onOpenWebLogin,
+                    modifier = Modifier.fillMaxSize(),
+                )
 
                 state.loading -> AppLoading(modifier = Modifier.fillMaxSize())
 

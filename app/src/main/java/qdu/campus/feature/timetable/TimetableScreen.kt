@@ -30,12 +30,9 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -43,14 +40,12 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -91,13 +86,13 @@ import qdu.campus.platform.designsystem.QduButton
 import qdu.campus.platform.designsystem.DialogButton
 import qdu.campus.platform.designsystem.QduButtonKind
 import qdu.campus.platform.designsystem.QduCard
+import qdu.campus.platform.designsystem.QduSelectField
+import qdu.campus.platform.designsystem.QduDatePickerDialog
 import qdu.campus.platform.designsystem.courseSurface
 import qdu.campus.platform.designsystem.listBottomGuard
 import qdu.campus.platform.system.ExternalLauncher
-import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
-import java.time.ZoneOffset
 
 private val TimeColumnWidth = 44.dp
 private val CellMinHeight = 62.dp
@@ -106,9 +101,10 @@ private val SwipeThreshold = 64f
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimetableScreen(
-    onOpenLogin: () -> Unit,
-    /** 打开本科教务系统（强智 jsxsd）自己的登录页，与统一认证是两套账号体系。 */
+    /** 打开本科教务系统首页（登录墙），账号密码由用户自己填——课表登录只为拿课表数据，与统一认证无关。 */
     onOpenStudentLogin: () -> Unit,
+    /** 研究生系统自己的登录页：同步失败与研究生空态用它，不与统一认证门禁混。 */
+    onOpenGraduateLogin: () -> Unit,
     viewModel: TimetableViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsState()
@@ -136,6 +132,8 @@ fun TimetableScreen(
             WindowInsetsSides.Top + WindowInsetsSides.Horizontal,
         ),
     ) { padding ->
+        // 课表是一级界面，不设登录门禁（2026-11-08 定稿）：未登录也能看本科公开课表、
+        // 走选班流程；研究生一路缺登录时由页内的研究生登录提示接手。
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -164,7 +162,8 @@ fun TimetableScreen(
 
             val message = state.message
             if (message != null) {
-                // 会话失效只有重新登录能解决；其余失败点「知道了」就够
+                // 会话失效只有重新登录能解决；其余失败点「知道了」就够。
+                // loginRequired 的消息都来自研究生同步链路，去研究生登录页。
                 InlineNotice(
                     text = message,
                     isError = true,
@@ -173,7 +172,7 @@ fun TimetableScreen(
                     onAction = {
                         if (state.loginRequired) {
                             viewModel.dismissMessage()
-                            onOpenLogin()
+                            onOpenGraduateLogin()
                         } else {
                             viewModel.dismissMessage()
                         }
@@ -237,7 +236,7 @@ fun TimetableScreen(
                                 "课表来自研究生系统，同步完成后会显示在周历上。"
                             },
                             actionLabel = if (state.loginRequired) "登录研究生系统" else null,
-                            onAction = if (state.loginRequired) onOpenLogin else null,
+                            onAction = if (state.loginRequired) onOpenGraduateLogin else null,
                         )
                     }
                 }
@@ -907,7 +906,7 @@ private fun ScheduleDialog(
                     )
                 }
                 Box {
-                    PickerField(
+                    QduSelectField(
                         label = "学期",
                         value = choices.firstOrNull { it.id == semester }?.label ?: semester,
                         onClick = { semesterMenu = true },
@@ -929,7 +928,7 @@ private fun ScheduleDialog(
                         }
                     }
                 }
-                PickerField(
+                QduSelectField(
                     label = "学期起始日",
                     value = startDate.ifBlank { "未设置" },
                     icon = Icons.Outlined.CalendarMonth,
@@ -1012,75 +1011,11 @@ private fun ScheduleDialog(
 
     if (showStartPicker) {
         val initial = runCatching { LocalDate.parse(startDate) }.getOrNull() ?: LocalDate.now()
-        val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = initial.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+        QduDatePickerDialog(
+            initialDate = initial,
+            onConfirm = { startDate = it.toString() },
+            onDismiss = { showStartPicker = false },
         )
-        DatePickerDialog(
-            onDismissRequest = { showStartPicker = false },
-            confirmButton = {
-                DialogButton(
-                    text = "确定",
-                    kind = QduButtonKind.Primary,
-                    onClick = {
-                        pickerState.selectedDateMillis?.let { millis ->
-                            startDate = Instant.ofEpochMilli(millis)
-                                .atZone(ZoneOffset.UTC)
-                                .toLocalDate()
-                                .toString()
-                        }
-                        showStartPicker = false
-                    },
-                )
-            },
-            dismissButton = {
-                DialogButton(
-                    text = "取消",
-                    kind = QduButtonKind.Ghost,
-                    onClick = { showStartPicker = false },
-                )
-            },
-        ) {
-            DatePicker(state = pickerState)
-        }
-    }
-}
-
-/** 选择框：描边卡片加标签与当前值，点击打开对应的选择器。 */
-@Composable
-private fun PickerField(
-    label: String,
-    value: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    icon: ImageVector = Icons.Outlined.ExpandMore,
-) {
-    OutlinedCard(onClick = onClick, modifier = modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
     }
 }
 
@@ -1093,7 +1028,7 @@ private fun TimeField(
     modifier: Modifier = Modifier,
 ) {
     var show by remember { mutableStateOf(false) }
-    PickerField(
+    QduSelectField(
         label = label,
         value = value.ifBlank { "未设置" },
         icon = Icons.Outlined.Schedule,

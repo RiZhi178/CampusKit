@@ -60,6 +60,7 @@ import qdu.campus.platform.designsystem.Pill
 import qdu.campus.platform.designsystem.PillKind
 import qdu.campus.platform.designsystem.QduCard
 import qdu.campus.platform.designsystem.SectionHead
+import qdu.campus.platform.designsystem.InlineNotice
 import qdu.campus.platform.designsystem.StatusLevel
 import qdu.campus.platform.designsystem.UiShapes
 import qdu.campus.platform.designsystem.UiSpacing
@@ -133,6 +134,22 @@ fun HomeScreen(
                         isCampusWifi = state.isCampusWifi,
                         onOpenNetwork = onOpenNetwork,
                     )
+                }
+
+                // 有比本机新的正式版时给横幅：没有服务端，这就是「推送」的全部形态——
+                // 启动静默查一次 GitHub，用户忽略后同版本不再弹。
+                state.updateBanner?.let { banner ->
+                    item {
+                        InlineNotice(
+                            text = "新版本 ${banner.versionName} 已发布，可去 GitHub 下载更新",
+                            modifier = Modifier.padding(top = 8.dp),
+                            actionLabel = "去更新",
+                            onAction = {
+                                launcher.openUrl(banner.url)
+                                viewModel.dismissUpdateBanner()
+                            },
+                        )
+                    }
                 }
 
                 item {

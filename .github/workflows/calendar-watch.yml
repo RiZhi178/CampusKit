@@ -1,0 +1,125 @@
+name: calendar-watch
+
+# 学年校历自动更新链路（docs/interfaces/calendar.md）：
+#
+#   ① 每年 9 月第一周 20:00（北京时间）扫教务处校历栏目 xl.htm，发现新学年校历通知；
+#   ② 自动下载 PDF → pdfplumber 直读矢量周历表（不依赖 MinerU 人工链路）→
+#      按第 1 周周一推算逐日日期，与表格逐格自洽校验 + 说明文字星期括注交叉核对；
+#   ③ 校验全过 → 组装 assets/calendar/<学年>.json（HOLIDAY 假期日）+
+#      tools/term-starts.json（每学期第一周周一，供 kcap-watch 全自动清洗课表）→ 开 PR；
+#   ④ 任何校验不过 → Actions 报错，降级人工 MinerU 链路（F:\WorkSpaceforBuddy\青岛大学-研究生\校历数据\）。
+#
+# 自动链路不覆盖的两件事（PR 合并前人工确认）：
+#   - MAKEUP 的 followsDate：校历只写「某日正常上课」，补周几的课必须照教务处
+#     教学安排通知（如 info/1009/6459.htm）逐条人工补，写星期几必错；
+#   - 「待通知」节日（元旦/清明/劳动/端午）：校历没给日期，不猜，通知发布后人工补。
+
+on:
+  schedule:
+    - cron: '0 12 1-7 9 *' # 9 月第一周每天 20:00 北京时间（UTC 12:00）
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: calendar-watch-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  calendar:
+    name: 检测并处理新学年校历
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 开 PR 与推分支都要用它；缺了会在最后一步报「gh: set GH_TOKEN」，先说清楚缺什么
+      - name: 检查 RELEASE_PAT 是否已配置
+        env:
+          PAT: ${{ secrets.RELEASE_PAT }}
+        run: |
+          [ -n "$PAT" ] || {
+            echo "::error::缺 secret RELEASE_PAT（fine-grained PAT，本仓库 contents + pull requests 读写）。Settings → Secrets and variables → Actions 里添加。"
+            exit 1
+          }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: 安装 pdfplumber
+        run: pip install pdfplumber
+
+      - name: 扫描校历栏目（失败重试 3 次）
+        id: scan
+        run: |
+          for i in 1 2 3; do
+            if node tools/calendar-watch.mjs check > /tmp/cal-scan.json; then
+              echo "found=$(jq -r '.found' /tmp/cal-scan.json)" >> "$GITHUB_OUTPUT"
+              jq -r '"academic_year=\(.academicYear)", "article_url=\(.articleUrl)", "pdf_url=\(.pdfUrl)"' /tmp/cal-scan.json >> "$GITHUB_OUTPUT" || true
+              cat /tmp/cal-scan.json
+              exit 0
+            fi
+            echo "第 $i 次扫描失败，等待重试…"
+            sleep 60
+          done
+          echo "::error::校历栏目连续 3 次扫描失败，人工介入"
+          exit 1
+
+      - name: 无新学年则到此为止
+        if: steps.scan.outputs.found != 'true'
+        run: echo "校历栏目最新一篇已在库，无事可做"
+
+      - name: 下载校历 PDF
+        if: steps.scan.outputs.found == 'true'
+        run: node tools/calendar-watch.mjs download --article "${{ steps.scan.outputs.article_url }}" --out /tmp/calendar.pdf
+
+      - name: 解析周历表（自洽校验不过即失败）
+        if: steps.scan.outputs.found == 'true'
+        id: extract
+        run: |
+          # 表达式语言没有 split()：学年 "2026-2027" 的起始年用 shell 参数展开截取
+          ACADEMIC_YEAR="${{ steps.scan.outputs.academic_year }}"
+          python tools/calendar-extract.py /tmp/calendar.pdf --year "${ACADEMIC_YEAR%%-*}" > /tmp/cal-extract.json
+          MAKEUP=$(jq -r '[.makeupCandidates[].date] | join("、")' /tmp/cal-extract.json)
+          echo "makeup=$MAKEUP" >> "$GITHUB_OUTPUT"
+
+      - name: 组装资产
+        if: steps.scan.outputs.found == 'true'
+        run: node tools/calendar-watch.mjs assemble --extract /tmp/cal-extract.json
+
+      - name: 开 PR
+        if: steps.scan.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          MAKEUP: ${{ steps.extract.outputs.makeup }}
+        run: |
+          YEAR="${{ steps.scan.outputs.academic_year }}"
+          git config user.name "calendar-watch"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout -b "calendar/$YEAR"
+          git add app/src/main/assets/calendar tools/term-starts.json
+          git diff --cached --quiet && echo "资产无变化，跳过 PR" && exit 0
+          git commit -m "feat: $YEAR 学年校历资产（自动解析，HOLIDAY 已入库）"
+          git push origin "calendar/$YEAR"
+          gh pr create \
+            --title "$YEAR 学年校历：自动解析产物待人工核对" \
+            --body "$(cat <<EOF
+          从校历通知（${{ steps.scan.outputs.article_url }}）自动解析的产物，星期括注交叉校验全过。
+
+          ## 合并前必须人工完成
+          1. **MAKEUP 配对**：校历标注的调休上课日（${MAKEUP:-无}）需要照教务处教学安排通知
+             逐条补 \`followsDate\`（写具体日期，写星期几必错；契约见 docs/interfaces/calendar.md）。
+             通知若尚未发布，先合并 HOLIDAY 部分，配对通知出来后单独补一次。
+          2. **「待通知」节日**（元旦/清明/劳动/端午）：校历没给日期，本 PR 不含它们；
+             通知发布后人工补进 assets/calendar/$YEAR.json。
+          3. 核对 tools/term-starts.json 的两个第一周周一与校历原文一致（课表自动清洗靠它）。
+
+          合并后下学期课表链路即全自动：kcap-watch 会从 term-starts.json 取开课周一。
+          EOF
+          )" --fill

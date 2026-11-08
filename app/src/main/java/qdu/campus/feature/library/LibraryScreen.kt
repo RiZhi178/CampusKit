@@ -7,11 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -53,7 +51,7 @@ import qdu.campus.platform.common.Formats
 import qdu.campus.platform.designsystem.AppLoading
 import qdu.campus.platform.designsystem.Banner
 import qdu.campus.platform.designsystem.BannerKind
-import qdu.campus.platform.designsystem.ErrWrap
+import qdu.campus.platform.designsystem.SessionGate
 import qdu.campus.platform.designsystem.PlaceholderBlock
 import qdu.campus.platform.designsystem.QduBackButton
 import qdu.campus.platform.designsystem.QduButton
@@ -63,6 +61,7 @@ import qdu.campus.platform.designsystem.Segmented
 import qdu.campus.platform.designsystem.StatusLevel
 import qdu.campus.platform.designsystem.StatusMark
 import qdu.campus.platform.designsystem.listBottomGuard
+import qdu.campus.feature.xgcommon.XgMintPane
 import qdu.campus.platform.web.CampusWebView
 import kotlinx.coroutines.delay
 import java.time.LocalDate
@@ -139,10 +138,13 @@ fun LibraryScreen(
                 }
 
                 when {
-                    state.syncing -> SyncPane()
+                    state.syncing -> XgMintPane()
 
                     state.sessionMissing -> SessionGate(
-                        onOpenLogin = onOpenLogin,
+                        title = "图书馆需要先登录",
+                        reason = "登录后就能查馆藏、管理借阅了。\n如果登录后还看不到，稍后再试一次。",
+                        onLogin = onOpenLogin,
+                        modifier = Modifier.fillMaxSize(),
                         onRetry = viewModel::retrySession,
                     )
 
@@ -218,24 +220,6 @@ private fun SyncPane() {
             modifier = Modifier.padding(horizontal = 24.dp),
         )
     }
-}
-
-@Composable
-private fun SessionGate(onOpenLogin: () -> Unit, onRetry: () -> Unit) {
-    ErrWrap(
-        title = "图书馆会话未同步",
-        reason = "检索与借阅都依赖图书馆自己的会话头。统一认证登录后打开本页会自动补齐；" +
-            "如果一直补不上，去统一认证确认一次登录再回来重试。",
-        actions = {
-            QduButton(text = "去登录", onClick = onOpenLogin)
-            Spacer(Modifier.height(8.dp))
-            QduButton(
-                text = "重试",
-                kind = QduButtonKind.Tonal,
-                onClick = onRetry,
-            )
-        },
-    )
 }
 
 @Composable

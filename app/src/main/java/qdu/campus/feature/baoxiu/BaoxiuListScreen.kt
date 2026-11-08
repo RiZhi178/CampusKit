@@ -36,7 +36,8 @@ import qdu.campus.domain.model.RepairTicket
 import qdu.campus.platform.designsystem.AppLoading
 import qdu.campus.platform.designsystem.Pill
 import qdu.campus.platform.designsystem.PillKind
-import qdu.campus.platform.designsystem.PlaceholderBlock
+import qdu.campus.platform.designsystem.CenteredPlaceholder
+import qdu.campus.platform.designsystem.SessionGate
 import qdu.campus.platform.designsystem.QduCard
 import qdu.campus.platform.designsystem.StatusLevel
 
@@ -85,16 +86,17 @@ fun BaoxiuListScreen(
                 .padding(padding),
         ) {
             when {
-                state.loginRequired -> CenterBlock(
-                    title = "需要重新登录报修系统",
-                    description = "统一认证会话过期后，报修接口会拒绝请求。去内嵌页登录一次即可。",
-                    actionLabel = "去登录",
-                    onAction = onOpenWebLogin,
+                state.loginRequired -> SessionGate(
+                    title = "宿舍报修需要先登录",
+                    reason = "登录后就能提交报修、查看进度了。",
+                    onLogin = onOpenWebLogin,
+                    modifier = Modifier.fillMaxSize(),
                 )
 
                 state.loading -> AppLoading(modifier = Modifier.fillMaxSize())
 
-                state.error != null -> CenterBlock(
+                state.error != null -> CenteredPlaceholder(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 48.dp),
                     title = "列表没能加载出来",
                     description = state.error.orEmpty(),
                     actionLabel = "重试",
@@ -110,7 +112,8 @@ fun BaoxiuListScreen(
                         // 空态也要能下拉刷新，所以放进可滚动容器里。
                         LazyColumn(modifier = Modifier.fillMaxSize()) {
                             item {
-                                CenterBlock(
+                                CenteredPlaceholder(
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 48.dp),
                                     title = "还没有报修记录",
                                     description = "点右下角「新建报修」，提交后的工单会出现在这里。",
                                     actionLabel = "刷新",
@@ -210,25 +213,3 @@ private fun stateMark(state: String?): StatusLevel? = when (state) {
     else -> null
 }
 
-@Composable
-private fun CenterBlock(
-    title: String,
-    description: String,
-    actionLabel: String,
-    onAction: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 48.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        PlaceholderBlock(
-            title = title,
-            description = description,
-            actionLabel = actionLabel,
-            onAction = onAction,
-        )
-    }
-}

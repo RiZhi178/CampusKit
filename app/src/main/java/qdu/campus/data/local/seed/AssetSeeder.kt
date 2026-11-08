@@ -57,7 +57,14 @@ class AssetSeeder @Inject constructor(
             if (semester.file.isBlank()) continue
             val bytes = readAssetBytes("kcap/${semester.file}")
             val fingerprint = sha256(bytes)
-            if (syncDao.observeOnce("seed:kcap:${semester.id}")?.message == fingerprint) continue
+            // 指纹一致还不够：term 行或课程行被外部清掉（清库意外/迁移事故）会让
+            // 选班与周次双双失效——2026-11-08 真机实锤（entries 在、terms 空）。
+            // 数据完整性一起查，缺一样就拉回重种路径。
+            val seeded = syncDao.observeOnce("seed:kcap:${semester.id}")?.message == fingerprint
+            val intact = seeded &&
+                ugTimetableDao.count(semester.id) > 0 &&
+                db.timetableDao().loadTerm(semester.id) != null
+            if (intact) continue
 
             val timetables = KcapParser.parseTimetables(bytes.decodeToString()) ?: continue
             val rows = timetables.classes.flatMap { cls ->
@@ -66,6 +73,7 @@ class AssetSeeder @Inject constructor(
                         id = lesson.id,
                         semesterId = semester.id,
                         className = cls.name,
+                        college = cls.college,
                         name = lesson.name,
                         code = lesson.code,
                         teachers = lesson.teachers,

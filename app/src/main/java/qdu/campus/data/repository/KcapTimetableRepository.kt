@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import qdu.campus.data.local.db.TimetableDao
+import qdu.campus.data.local.db.UgClassRef
 import qdu.campus.data.local.db.UgTimetableDao
 import qdu.campus.data.local.db.toIntList
 import qdu.campus.data.remote.jwc.KcapLesson
@@ -117,10 +118,16 @@ class KcapTimetableRepository @Inject constructor(
     }
 
     /**
-     * 勾选框上的班级列表。全校一千多个班，页面靠搜索框定位，这里只保证顺序稳定。
+     * 勾选框上的班级目录：班名 + 归属学院（清洗阶段对照专业设置表归类）。
+     * 全校一千多个班，页面靠学院筛选与搜索框定位，这里只保证顺序稳定。
      */
-    suspend fun classNames(semesterId: String): List<String> =
-        runCatching { ugTimetableDao.classNames(resolveSemester(semesterId)) }.getOrDefault(emptyList())
+    suspend fun classDirectory(semesterId: String): List<UgClassRef> =
+        runCatching { ugTimetableDao.classDirectory(resolveSemester(semesterId)) }.getOrDefault(emptyList())
+
+    /** 一个班都排了哪些课（去重后的课程名）。噪声班名（教学班号）的附注用。 */
+    suspend fun courseNamesOfClass(semesterId: String, className: String): List<String> =
+        runCatching { ugTimetableDao.courseNamesOfClass(resolveSemester(semesterId), className) }
+            .getOrDefault(emptyList())
 
     /** 这些班里一共有几节课，用于「已选 N 个班，共 M 节课」的即时反馈。 */
     suspend fun courseCount(semesterId: String, chosen: Set<String>): Int =

@@ -1,0 +1,105 @@
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"><title>
+
+</title><link href="../../App_Themes/GridPager/GridPager.css" type="text/css" rel="stylesheet"><link rel="stylesheet" href="https://xg.qdu.edu.cn/AppLoadFrame/Theme/Scripts/layer/theme/default/layer.css?v=3.1.1" id="layuicss-layer"><link rel="stylesheet" href="https://xg.qdu.edu.cn/apps/DailyLeave/Features/Content/js/laydate/theme/default/laydate.css?v=5.0.9" id="layuicss-laydate"></head>
+<body style="overflow-y: auto;">
+    <link href="https://xg.qdu.edu.cn/AppLoadFrame/Theme/css/reference.css" rel="stylesheet">
+    <script src="https://xg.qdu.edu.cn/AppLoadFrame/Theme/Scripts/jquery-2.1.1.min.js"></script>
+    <script src="https://xg.qdu.edu.cn/AppLoadFrame/Theme/Scripts/layer/layer.js"></script>
+    <script src="https://xg.qdu.edu.cn/AppLoadFrame/Theme/Scripts/public.js"></script>
+    <script src="../Content/js/laydate/laydate.js" type="text/javascript"></script>
+    <script src="../Scripts/js/imagelist.js"></script>
+
+    <form name="form1" method="post" action="./StuApply.aspx" id="form1">
+<div>
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="__REDACTED__">
+</div>
+
+<div>
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="__REDACTED__">
+	<input type="hidden" name="__VIEWSTATEENCRYPTED" id="__VIEWSTATEENCRYPTED" value="">
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="__REDACTED__">
+</div>
+        
+        <div id="AddDiv" class="DivMenu" style="padding-left: 17px;">
+            <a href="javascript:void(0);" url="StuApply_Edit.aspx"><i class="fa fa-plus"></i>
+                <span id="LeaveType">申请</span></a>
+        </div>
+        <div class="documentBody">
+            <div class="DivMain">
+                <div class="DivCaption">
+                    <div style="width: 45%; float: left; text-align: left;">&nbsp;&nbsp;<img src="../Content/img/arrow.gif">&nbsp;日常请假列表</div>
+                    <div style="float: right; text-align: right; margin: 6px 0 0 0;">
+                        <div style="width:100%;float:right;margin-right:2px">
+<table id="TPagedInfo1" cellpadding="1">
+	<tbody><tr>
+		<td><span id="TPagedInfo1_myinfolbl">共检索到&nbsp;<font color="red">0</font>&nbsp;条记录，每页&nbsp;<font color="red">50</font>&nbsp;条，共&nbsp;<font color="red">0</font>&nbsp;页</span></td>
+	</tr>
+</tbody></table></div>
+
+                    </div>
+                </div>
+                <div>
+	<table class="white form-table DivTable" cellspacing="0" cellpadding="3" border="0" id="GridView1" style="font-size:9pt;width:100%;border-collapse:collapse;">
+		<tbody><tr class="trEven">
+			<td colspan="7">未找到相关数据</td>
+		</tr>
+	</tbody></table>
+</div>
+                <div style="width:100%;text-align:right;margin:5px 0px;">
+<span id="TPaged1" cellpadding="1">共检索到&nbsp;<font color="red">0</font>&nbsp;条记录，每页&nbsp;<font color="red">50</font>&nbsp;条，第&nbsp;<font color="red" class="PageNumber">1</font>/<font color="red">1</font>&nbsp;页&nbsp;&nbsp;</span><input type="submit" name="TPaged1$Fistpage" value="首  页" id="TPaged1_Fistpage" disabled="disabled"> 
+<input type="submit" name="TPaged1$Prevpage" value="上一页" id="TPaged1_Prevpage" disabled="disabled"> 
+<input type="submit" name="TPaged1$Nextpage" value="下一页" id="TPaged1_Nextpage" disabled="disabled"> 
+<input type="submit" name="TPaged1$Lastpage" value="尾  页" id="TPaged1_Lastpage" disabled="disabled"> 
+<span id="TPaged1_lbjumppage">跳转到第</span> 
+<input name="TPaged1$GotoPage" type="text" id="TPaged1_GotoPage" style="width:40px;text-align:center;"> 
+<span id="TPaged1_lbye">页</span> 
+<input type="submit" name="TPaged1$Jump" value="跳  转" id="TPaged1_Jump" disabled="disabled">&nbsp;&nbsp;</div>
+
+            </div>
+        </div>
+        
+        <input type="button" class="re_btn" onclick="window.location.href = window.location.href;" style="display: none;">
+    </form>
+
+
+<script type="text/javascript">
+    
+    function stu_print(obj, isCancel, status) {
+        try {
+            if (isCancel == "1" || status != "7") {
+                layer.msg('该状态不能打印！');
+                return;
+            }
+            var btn = $(obj).next();
+            btn.click();
+        } catch (e) { }
+    }
+
+    //$(function () {
+    //    $("body").delegate(".confirm-single", "click", function () {
+    //        try {
+    //            btn_obj = $(this);
+    //            var lc = layer.confirm($(this).attr("msg"), {
+    //                btn: ['确定', '取消']
+    //            }, function () {
+    //                var url = 'DisLeavePic.aspx?Id=' + btn_obj.attr("myid");
+    //                div_obj = layer.open({
+    //                    type: 2,
+    //                    title: '申请销假',
+    //                    area: ['80%', '95%'],
+    //                    content: url,
+    //                    cancel: function () {
+    //                       window.location.href='StuApply.aspx'
+    //                    }
+    //                });
+    //                layer.close(lc);
+    //            }, function () {
+    //                layer.close(lc);
+    //            });
+    //        } catch (e) {  }
+    //    });
+    //});
+
+</script>
+</body></html>

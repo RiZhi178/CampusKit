@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -267,5 +268,71 @@ fun ErrWrap(
             horizontalAlignment = Alignment.CenterHorizontally,
             content = actions,
         )
+    }
+}
+
+/** 会话门禁整屏：Lock 图标 + 标题 + 说明（bodyMedium）+ 主按钮 + 可选重试。 */
+@Composable
+fun SessionGate(
+    title: String,
+    reason: String,
+    onLogin: () -> Unit,
+    modifier: Modifier = Modifier,
+    loginLabel: String = "去登录",
+    onRetry: (() -> Unit)? = null,
+    retryLabel: String = "重试",
+) {
+    val scheme = MaterialTheme.colorScheme
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(scheme.surfaceContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(26.dp),
+                    tint = scheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                color = scheme.onSurface,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+            Text(
+                text = reason,
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+            QduButton(
+                text = loginLabel,
+                onClick = onLogin,
+                modifier = Modifier.padding(top = 18.dp),
+            )
+            if (onRetry != null) {
+                QduButton(
+                    text = retryLabel,
+                    onClick = onRetry,
+                    kind = QduButtonKind.Tonal,
+                    modifier = Modifier.padding(top = 9.dp),
+                )
+            }
+        }
     }
 }

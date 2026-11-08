@@ -38,7 +38,8 @@ import qdu.campus.domain.model.RepairFlowNode
 import qdu.campus.platform.designsystem.AppLoading
 import qdu.campus.platform.designsystem.Pill
 import qdu.campus.platform.designsystem.PillKind
-import qdu.campus.platform.designsystem.PlaceholderBlock
+import qdu.campus.platform.designsystem.CenteredPlaceholder
+import qdu.campus.platform.designsystem.SessionGate
 import qdu.campus.platform.designsystem.DialogButton
 import qdu.campus.platform.designsystem.QduButton
 import qdu.campus.platform.designsystem.QduButtonKind
@@ -88,16 +89,17 @@ fun BaoxiuDetailScreen(
                 .padding(padding),
         ) {
             when {
-                state.loginRequired -> Centered(
-                    title = "需要重新登录报修系统",
-                    description = "统一认证会话过期后，报修接口会拒绝请求。",
-                    actionLabel = "去登录",
-                    onAction = onOpenWebLogin,
+                state.loginRequired -> SessionGate(
+                    title = "宿舍报修需要先登录",
+                    reason = "登录后就能查看工单详情和进度了。",
+                    onLogin = onOpenWebLogin,
+                    modifier = Modifier.fillMaxSize(),
                 )
 
                 state.loading -> AppLoading(modifier = Modifier.fillMaxSize())
 
-                state.error != null -> Centered(
+                state.error != null -> CenteredPlaceholder(
+                    modifier = Modifier.fillMaxSize().padding(24.dp),
                     title = "详情没能加载出来",
                     description = state.error.orEmpty(),
                     actionLabel = "重试",
@@ -306,27 +308,3 @@ private fun FlowItem(node: RepairFlowNode, isLast: Boolean) {
     }
 }
 
-@Composable
-private fun Centered(
-    title: String,
-    description: String,
-    actionLabel: String,
-    onAction: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        QduCard {
-            PlaceholderBlock(
-                title = title,
-                description = description,
-                actionLabel = actionLabel,
-                onAction = onAction,
-            )
-        }
-    }
-}

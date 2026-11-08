@@ -10,9 +10,11 @@ import qdu.campus.domain.model.Course
 import qdu.campus.domain.model.DayOverride
 import qdu.campus.domain.model.NoScheduleCourse
 import qdu.campus.domain.model.SemesterOption
+import qdu.campus.domain.model.SessionState
 import qdu.campus.domain.model.TimetableLevel
 import qdu.campus.domain.model.WeekSchedule
 import qdu.campus.domain.repository.RefreshOutcome
+import qdu.campus.domain.repository.SessionRepository
 import qdu.campus.domain.repository.SettingsRepository
 import qdu.campus.domain.repository.TimetableRepository
 import qdu.campus.domain.usecase.BuildWeekScheduleUseCase
@@ -22,7 +24,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import qdu.campus.data.repository.KcapTimetableRepository
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -47,7 +51,7 @@ data class TimetableUiState(
     val today: LocalDate = Formats.today(),
     /** 此刻正在上的课程 id，非本周时恒为空。 */
     val liveCourseIds: Set<String> = emptySet(),
-    /** 选中周对应的日期区间文案，「10 月 26 日 – 11 月 1 日」。 */
+    /** 选中周对应的日期区间文案，「11.02-11.08」（省横向空间，不用汉字）。 */
     val weekRange: String = "",
     /** 本周不上的课程及原因，见 [BuildWeekScheduleUseCase] 的周次过滤。 */
     val weekNotes: List<String> = emptyList(),
@@ -57,12 +61,21 @@ data class TimetableUiState(
     val ugClassCount: Int = 0,
     /** 当前这一路数据源给出的学期候选，「学期与节次」里的学期选择框用它。 */
     val semesterOptions: List<SemesterOption> = emptyList(),
+    /**
+     * 勾选的班级在当前学期目录里一个都对不上：新学期资产已就绪而旧勾选不再适用，
+     * 页面据此给「重新选班」横幅。研究生一路恒为 false。
+     */
+    val staleClasses: Boolean = false,
+    /** 统一认证会话状态；非 Valid 时课表整页被门禁挡住（含本科公开数据）。 */
+    val session: SessionState = SessionState.Unknown,
 )
 
 @HiltViewModel
 class TimetableViewModel @Inject constructor(
     private val repository: TimetableRepository,
+    private val kcapRepository: KcapTimetableRepository,
     private val settings: SettingsRepository,
+    private val sessionRepository: SessionRepository,
     calendarDao: CalendarDao,
 ) : ViewModel() {
 
@@ -158,9 +171,27 @@ class TimetableViewModel @Inject constructor(
                 _state.value = _state.value.copy(ugClassCount = chosen.size)
             }
         }
+        // 新学期提示：勾选的班在当前学期目录里全部消失 = 资产已更新而旧勾选失效。
+        // 只看「一个都不在」，部分缺失可能是改名之类的噪声，不给用户添堵。
+        viewModelScope.launch {
+            combine(settings.timetableLevel, settings.undergraduateClasses, settings.semesterId) {
+                level, chosen, semester -> Triple(level, chosen, semester)
+            }.collectLatest { (level, chosen, semester) ->
+                val stale = level == TimetableLevel.Undergraduate && chosen.isNotEmpty() &&
+                    runCatching { kcapRepository.classDirectory(semester) }
+                        .getOrDefault(emptyList())
+                        .none { it.className in chosen }
+                _state.value = _state.value.copy(staleClasses = stale)
+            }
+        }
         viewModelScope.launch {
             repository.observeSemesterOptions().collect { options ->
                 _state.value = _state.value.copy(semesterOptions = options)
+            }
+        }
+        viewModelScope.launch {
+            sessionRepository.state.collect { session ->
+                _state.value = _state.value.copy(session = session)
             }
         }
         // 只吃本机时钟：此刻上到哪节、今天翻没翻页，不该等一次刷新才知道。
@@ -195,6 +226,9 @@ class TimetableViewModel @Inject constructor(
      * 在勾选班级并应用时一并写入，改来源本身不动那两项。
      */
     fun setLevel(value: TimetableLevel) {
+        // 切来源时上一路的失败横幅必须清掉：研究生同步失败的消息带到本科侧，
+        // 会和本科数据提示拼成两道「去登录」横幅（真机实锤）。
+        _state.value = _state.value.copy(message = null, loginRequired = false)
         viewModelScope.launch { settings.setTimetableLevel(value) }
     }
 
@@ -212,15 +246,23 @@ class TimetableViewModel @Inject constructor(
 
     fun refresh() {
         if (_state.value.isRefreshing) return
+        // 未登录不发同步：来源还是默认值时会误派给研究生链路，弹「需要单独登录」
+        // 的失败横幅——一级界面在未登录态应该安静（本科公开数据本就不需要登录）。
+        if (_state.value.session != SessionState.Valid) return
+        // 还没选过来源时也不刷：路由会把默认来源派给研究生链路，同上。
+        val requestedLevel = _state.value.level ?: return
         _state.value = _state.value.copy(isRefreshing = true)
         viewModelScope.launch {
             val outcome = runCatching { repository.refresh() }
                 .getOrElse { RefreshOutcome.Failure(it.message ?: "课表更新失败") }
             val failure = outcome as? RefreshOutcome.Failure
+            // 刷新期间用户切了来源：这份失败属于旧来源，不能写到新来源的页面上
+            //（setLevel 清过横幅，但迟到的结果会再写一次——双横幅的竞态路径）。
+            val sameLevel = _state.value.level == requestedLevel
             _state.value = _state.value.copy(
                 isRefreshing = false,
-                message = failure?.message,
-                loginRequired = failure?.loginRequired == true,
+                message = if (sameLevel) failure?.message else null,
+                loginRequired = sameLevel && failure?.loginRequired == true,
             )
         }
     }
@@ -258,9 +300,7 @@ class TimetableViewModel @Inject constructor(
                 emptySet()
             },
             weekRange = WeekCalculator.weekDates(startDate, selected)
-                ?.let { (monday, sunday) ->
-                    "${Formats.monthDay(monday)} – ${Formats.monthDay(sunday)}"
-                }
+                ?.let { (monday, sunday) -> Formats.dateRangeDot(monday, sunday) }
                 .orEmpty(),
             weekNotes = weekNotes(courses, schedule),
         )

@@ -1,0 +1,319 @@
+name: kcap-watch
+
+# 新学期课程总表的自动更新链路（docs/interfaces/jwc-kcap.md 第六节）：
+#
+#   ① 每年 2 月最后一周与 9 月第一周的 20:00（北京时间）扫教务处 kcap.htm 列表页；
+#   ② 发现新学期文章后先查 tools/term-starts.json（校历链路维护的第一周周一映射）：
+#      有 → 全自动下载 xlsx、清洗、过门禁、开 PR，不需要任何人；
+#      没有（校历还没解析上线）→ 开 issue 降级人工：评论 `term-start: YYYY-MM-DD` 兜底；
+#   ③ PR 合并进 main → 自动版本位 bump（走第二位）+ 打 v* tag，
+#      tag 由 RELEASE_PAT 推送以触发 ci.yml 的 verify + release 作业出签名包。
+#
+# term-start 的正源是校历（calendar-watch 链路维护），不允许从课表数据猜。
+#
+# 需要 Secrets：
+#   RELEASE_PAT —— fine-grained PAT（本仓库 contents: read/write）。默认 GITHUB_TOKEN
+#   推的 tag 不会触发其他 workflow，必须用 PAT。
+#
+# 已知风险：GitHub Runner 在境外，访问教务处站点可能慢或被断连。检测步骤带重试；
+# 连续失败时看 Actions 日志，不要静默放过——检测挂了等于链路挂了。
+
+on:
+  schedule:
+    # 2 月最后一周（含闰日）与 9 月第一周，每天 20:00 北京时间（UTC 12:00）
+    - cron: '0 12 22-29 2 *'
+    - cron: '0 12 1-7 9 *'
+  workflow_dispatch:
+  issue_comment:
+    types: [created]
+  push:
+    branches: [main]
+    paths:
+      - 'app/src/main/assets/kcap/**'
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: kcap-watch-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ── ① 检测：发现新学期，判定 term-start 是否已由校历链路就绪 ─────────
+  watch:
+    name: 检测新学期课程总表
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    outputs:
+      found: ${{ steps.scan.outputs.found }}
+      semester_id: ${{ steps.scan.outputs.semester_id }}
+      semester_label: ${{ steps.scan.outputs.semester_label }}
+      article_url: ${{ steps.scan.outputs.article_url }}
+      has_term_start: ${{ steps.term.outputs.has }}
+      # autoclean 清洗时要用它，漏了这行下游会拿到空值（--term-start 空 → 日期全错）
+      term_start: ${{ steps.term.outputs.term_start }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 扫描教务处列表页（失败重试 3 次）
+        id: scan
+        run: |
+          for i in 1 2 3; do
+            if node tools/kcap-watch.mjs check > /tmp/scan.json; then
+              echo "found=$(jq -r '.found' /tmp/scan.json)" >> "$GITHUB_OUTPUT"
+              if [ "$(jq -r '.found' /tmp/scan.json)" = "true" ]; then
+                jq -r '"semester_id=\(.semesterId)", "semester_label=\(.label)", "article_url=\(.articleUrl)"' /tmp/scan.json >> "$GITHUB_OUTPUT"
+              fi
+              cat /tmp/scan.json
+              exit 0
+            fi
+            echo "第 $i 次扫描失败，等待重试…"
+            sleep 60
+          done
+          echo "::error::教务处列表页连续 3 次扫描失败，检测链路挂了，人工介入"
+          exit 1
+
+      - name: 查 term-start 是否已由校历链路就绪
+        id: term
+        run: |
+          ID="${{ steps.scan.outputs.semester_id }}"
+          if jq -e --arg id "$ID" 'has($id)' tools/term-starts.json > /dev/null 2>&1; then
+            echo "has=true" >> "$GITHUB_OUTPUT"
+            echo "term_start=$(jq -r --arg id "$ID" '.[$id]' tools/term-starts.json)" >> "$GITHUB_OUTPUT"
+          else
+            echo "has=false" >> "$GITHUB_OUTPUT"
+            echo "term-starts.json 里没有 $ID：校历链路还没上线这个学期，降级人工确认"
+          fi
+
+  # ── ②a 全自动：term-start 已就绪 → 下载清洗校验开 PR ────────────────
+  autoclean:
+    name: 全自动清洗新学期课表
+    needs: watch
+    if: needs.watch.outputs.found == 'true' && needs.watch.outputs.has_term_start == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 下载附件（带 Referer 防校验页）
+        run: node tools/kcap-watch.mjs download --article "${{ needs.watch.outputs.article_url }}" --out /tmp/kcap.xlsx
+
+      - name: 清洗
+        run: node tools/kcap-clean.mjs /tmp/kcap.xlsx --semester "${{ needs.watch.outputs.semester_id }}" --label "${{ needs.watch.outputs.semester_label }}" --term-start "${{ needs.watch.outputs.term_start }}" --out app/src/main/assets/kcap
+
+      - name: 校验门禁
+        run: node tools/kcap-validate.mjs
+
+      - name: 开 PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          BRANCH="kcap/${{ needs.watch.outputs.semester_id }}"
+          git config user.name "kcap-watch"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add app/src/main/assets/kcap
+          git commit -m "feat: 新学期课程总表 ${{ needs.watch.outputs.semester_label }}（${{ needs.watch.outputs.term_start }} 开课）"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "新学期课程总表：${{ needs.watch.outputs.semester_label }}" \
+            --body "$(cat <<EOF
+          全自动清洗产物（term-start 取自校历链路：${{ needs.watch.outputs.term_start }}），校验门禁已过。
+          - 合并后自动 bump 版本并打 tag 出签名包
+          - 记录数与班级数见上方清洗日志，与上一学期量级对比无异常再合并
+          EOF
+          )" --fill
+          echo "pr-url=$PR_URL" >> "$GITHUB_OUTPUT"
+
+      - name: 失败时降级说明
+        if: failure()
+        run: echo "::error::全自动清洗失败（多半是表样变了），先人工看 kcap-clean.mjs 的报错，再走 issue 评论 term-start 的人工路径"
+
+  # ── ②b 人工兜底：term-start 未就绪 → 开 issue 等人工确认 ────────────
+  fallback-issue:
+    name: 开 issue 等人工补 term-start
+    needs: watch
+    if: needs.watch.outputs.found == 'true' && needs.watch.outputs.has_term_start != 'true'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: 开 issue
+        run: |
+          gh issue create \
+            --title "[kcap-watch] 发现新学期课程总表：${{ needs.watch.outputs.semester_label }}" \
+            --label "kcap-watch" \
+            --body "$(cat <<EOF
+          检测到教务处发布了新学期课程总表，但 tools/term-starts.json 里还没有这个学期的
+          第一周周一（校历链路没上线或还没合并）。
+
+          - 学期标识：${{ needs.watch.outputs.semester_id }}
+          - 学期名称：${{ needs.watch.outputs.semester_label }}
+          - 文章页：${{ needs.watch.outputs.article_url }}
+
+          ## 人工确认（两件事，缺一不可）
+
+          1. 在本 issue 下评论一行（格式严格如下，日期是**第一周周一**，照校历填，不允许猜）：
+
+              term-start: 2027-03-02
+
+          2. 若本学期跨入新学年，app/src/main/assets/calendar/ 的假期配对也要人工核对更新
+             （契约见 docs/interfaces/calendar.md），清洗 PR 不会自动带校历。
+
+          评论后自动化会下载附件 → 清洗 → 过门禁 → 开 PR；PR 合并后自动 bump 版本出包。
+          顺手把 term-start 补进 tools/term-starts.json（下学期就能全自动）。
+          EOF
+          )"
+
+  # ── ②c 人工兜底清洗：收到 term-start 评论 → 下载清洗校验开 PR ────────
+  clean:
+    name: 人工路径清洗新学期课表
+    if: >
+      github.event_name == 'issue_comment' &&
+      github.event.action == 'created' &&
+      contains(github.event.issue.labels.*.name, 'kcap-watch') &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      startsWith(github.event.comment.body, 'term-start:')
+    runs-on: ubuntu-latest
+    steps:
+      - name: 校验评论格式
+        id: meta
+        env:
+          COMMENT: ${{ github.event.comment.body }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+        run: |
+          DATE=$(echo "$COMMENT" | head -1 | sed -n 's/^term-start:[[:space:]]*\([0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}\)$/\1/p')
+          if [ -z "$DATE" ]; then
+            echo "::error::评论格式不对，应为：term-start: YYYY-MM-DD（第一周周一）"
+            exit 1
+          fi
+          SEMESTER_ID=$(echo "$ISSUE_BODY" | sed -n 's/^- 学期标识：\(.*\)$/\1/p' | tr -d ' ')
+          LABEL=$(echo "$ISSUE_BODY" | sed -n 's/^- 学期名称：\(.*\)$/\1/p' | tr -d ' ')
+          ARTICLE=$(echo "$ISSUE_BODY" | sed -n 's/^- 文章页：\(.*\)$/\1/p' | tr -d ' ')
+          START=$(date -d "$DATE" +%u)
+          if [ "$START" != "1" ]; then
+            echo "::error::$DATE 不是周一（第一周周一必须是周一），照校历重新填"
+            exit 1
+          fi
+          echo "term-start=$DATE" >> "$GITHUB_OUTPUT"
+          echo "semester-id=$SEMESTER_ID" >> "$GITHUB_OUTPUT"
+          echo "semester-label=$LABEL" >> "$GITHUB_OUTPUT"
+          echo "article-url=$ARTICLE" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 下载附件（带 Referer 防校验页）
+        run: node tools/kcap-watch.mjs download --article "${{ steps.meta.outputs.article-url }}" --out /tmp/kcap.xlsx
+
+      - name: 清洗
+        run: node tools/kcap-clean.mjs /tmp/kcap.xlsx --semester "${{ steps.meta.outputs.semester-id }}" --label "${{ steps.meta.outputs.semester-label }}" --term-start "${{ steps.meta.outputs.term-start }}" --out app/src/main/assets/kcap
+
+      - name: 校验门禁
+        run: node tools/kcap-validate.mjs
+
+      - name: 把 term-start 也写进映射，下次全自动
+        env:
+          SEMESTER_ID: ${{ steps.meta.outputs.semester-id }}
+          DATE: ${{ steps.meta.outputs.term-start }}
+        run: |
+          node -e "
+          const fs = require('fs');
+          const f = 'tools/term-starts.json';
+          const m = JSON.parse(fs.readFileSync(f, 'utf8'));
+          m[process.env.SEMESTER_ID] = process.env.DATE;
+          fs.writeFileSync(f, JSON.stringify(m, null, 2) + '\n');
+          "
+          git add tools/term-starts.json
+
+      - name: 开 PR
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+        run: |
+          BRANCH="kcap/${{ steps.meta.outputs.semester-id }}"
+          git config user.name "kcap-watch"
+          git config user.email "actions@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add app/src/main/assets/kcap tools/term-starts.json
+          git commit -m "feat: 新学期课程总表 ${{ steps.meta.outputs.semester-label }}（${{ steps.meta.outputs.term-start }} 开课）"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "新学期课程总表：${{ steps.meta.outputs.semester-label }}" \
+            --body "$(cat <<EOF
+          人工确认路径的清洗产物（第一周周一 ${{ steps.meta.outputs.term-start }}），校验门禁已过。
+          - 合并后自动 bump 版本并打 tag 出签名包
+          - ⚠️ 若本学期跨入新学年，assets/calendar/ 的假期配对需要单独人工核对（本 PR 不含校历）
+          - 记录数与班级数见上方清洗日志，与上一学期量级对比无异常再合并
+          EOF
+          )" --fill
+
+      - name: 在 issue 里回报结果
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "清洗完成，门禁通过，PR 已开（见仓库 Pull requests）。"
+          gh issue close ${{ github.event.issue.number }} --reason completed
+
+      - name: 失败时在 issue 里说明
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh issue comment ${{ github.event.issue.number }} --body "清洗或校验失败，看本仓库 Actions 日志定位（多半是表样变了，先人工看 kcap-clean.mjs 的报错）。"
+
+  # ── ③ 资产合并进 main → 版本 bump + 打 tag（触发 ci.yml 出包）──────
+  release:
+    name: 版本 bump 并打 tag
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 检查 RELEASE_PAT 是否已配置
+        env:
+          PAT: ${{ secrets.RELEASE_PAT }}
+        run: |
+          [ -n "$PAT" ] || {
+            echo "::error::缺 secret RELEASE_PAT（fine-grained PAT，本仓库 contents 读写）。没有它推的 tag 不会触发 ci.yml 出包。"
+            exit 1
+          }
+
+      - name: 计算新版本位
+        id: bump
+        run: |
+          NEW_TAG=$(node tools/release-bump.mjs | tail -1)
+          echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "新版本：$NEW_TAG"
+
+      - name: 提交版本位并推 tag（PAT 推送以触发 ci.yml 的 release 作业）
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          NEW_TAG: ${{ steps.bump.outputs.tag }}
+        run: |
+          # checkout 注入的是 GITHUB_TOKEN，用它推的 tag 不会触发别的 workflow（GitHub 的既定行为）。
+          # 改成 PAT：让 gh 当 git 的 credential helper，并清掉 checkout 留下的 extraheader。
+          gh auth setup-git
+          git config --unset-all "http.https://github.com/.extraheader" || true
+          git config user.name "kcap-watch"
+          git config user.email "actions@users.noreply.github.com"
+          git add app/build.gradle.kts
+          git commit -m "chore: 版本 bump 到 ${NEW_TAG#v}（新学期资产合并，走第二位）"
+          git push origin "HEAD:main"
+          git tag "$NEW_TAG"
+          git push origin "$NEW_TAG"

@@ -7,7 +7,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import qdu.campus.domain.model.WebDomain
 import qdu.campus.domain.model.XgAwardPage
 import qdu.campus.domain.repository.XgRepository
 import qdu.campus.platform.common.XgAuthException
@@ -35,10 +37,15 @@ class AppraisalViewModel @Inject constructor(
         val error: String? = null,
         /** 不是网络问题，是学工会话没有：提示语与「去学工系统」按钮都跟着这个走。 */
         val needsLogin: Boolean = false,
+        /** 正在用隐藏内嵌页静默自动登录（替点门户磁贴），页面显示进度并把 WebView 藏起来。 */
+        val syncing: Boolean = false,
     )
 
     private val _state = MutableStateFlow(UiState())
     val state: StateFlow<UiState> = _state.asStateFlow()
+
+    /** 静默自动登录的起始时刻；单跳与整链超时都从这里算。 */
+    private var mintStartedAt = 0L
 
     init {
         refresh()
@@ -64,7 +71,12 @@ class AppraisalViewModel @Inject constructor(
                 }
                 .onFailure { error ->
                     if (error is XgAuthException) {
-                        _state.update { it.copy(loading = false, needsLogin = true, error = null) }
+                        if (coordinator.hasCasTicket()) {
+                            mintStartedAt = System.currentTimeMillis()
+                            _state.update { it.copy(loading = false, syncing = true, needsLogin = false, error = null) }
+                        } else {
+                            _state.update { it.copy(loading = false, needsLogin = true, error = null) }
+                        }
                     } else {
                         _state.update {
                             it.copy(
@@ -75,6 +87,37 @@ class AppraisalViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    /**
+     * 隐藏内嵌页每加载完一页报一次。链上有多跳，只有落地 /apps/PJPY/ 才代表跳票
+     * 消费掉、学工会话铸好；此时回灌 Cookie 再重读页面，以真的读到为独立判据。
+     * 其余页只用来兜总时长。
+     */
+    fun onMintPageFinished(url: String) {
+        if (!_state.value.syncing) return
+        if (!url.contains("/apps/PJPY/")) {
+            if (System.currentTimeMillis() - mintStartedAt > 40_000L) endSync()
+            return
+        }
+        viewModelScope.launch {
+            delay(800)
+            if (!_state.value.syncing) return@launch
+            coordinator.saveFromWebView(listOf(WebDomain.XG))
+            refresh()
+        }
+    }
+
+    fun onMintFailed() {
+        if (_state.value.syncing) endSync()
+    }
+
+    fun syncTimedOut() {
+        if (_state.value.syncing) endSync()
+    }
+
+    private fun endSync() {
+        _state.update { it.copy(syncing = false, needsLogin = true) }
     }
 
     /** 从学工门户回来时重读一次；只在确实提示过「缺会话」时才补这一下。 */

@@ -15,7 +15,7 @@ import androidx.room.RoomDatabase
         DormBuildingEntity::class,
         CalendarDayEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class CampusDatabase : RoomDatabase() {

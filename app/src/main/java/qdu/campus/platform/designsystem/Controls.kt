@@ -18,21 +18,31 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /** 药丸类型。Default 用 secondaryContainer，其余按原型四型固定。 */
@@ -135,29 +145,32 @@ fun QduButton(
     fillWidth: Boolean = false,
 ) {
     val scheme = MaterialTheme.colorScheme
+    // 禁用态不整颗叠透明度：实色底按钮（Primary/Tonal）底与字一起褪色后互相凑近，
+    // 弹窗底色上几乎读不出字（ClassPicker 未选班时实测）。改成 M3 惯例的灰容器 + 灰字：
+    // 底字对比不变，只靠容器从主色换成灰来交代「按不下去」。
     val background: Color
     val content: Color
     val outline: Color?
     when (kind) {
         QduButtonKind.Primary -> {
-            background = scheme.primary
-            content = scheme.onPrimary
+            background = if (enabled) scheme.primary else scheme.surfaceContainerHighest
+            content = if (enabled) scheme.onPrimary else scheme.onSurfaceVariant
             outline = null
         }
         QduButtonKind.Tonal -> {
-            background = scheme.primaryContainer
-            content = scheme.onPrimaryContainer
+            background = if (enabled) scheme.primaryContainer else scheme.surfaceContainerHighest
+            content = if (enabled) scheme.onPrimaryContainer else scheme.onSurfaceVariant
             outline = null
         }
         QduButtonKind.Ghost -> {
             background = Color.Transparent
-            content = scheme.primary
+            content = if (enabled) scheme.primary else scheme.onSurfaceVariant
             outline = scheme.outlineVariant
         }
         QduButtonKind.Danger -> {
             background = Color.Transparent
-            content = scheme.error
-            outline = scheme.error.copy(alpha = 0.45f)
+            content = if (enabled) scheme.error else scheme.onSurfaceVariant
+            outline = if (enabled) scheme.error.copy(alpha = 0.45f) else scheme.outlineVariant
         }
     }
     Box(
@@ -173,8 +186,6 @@ fun QduButton(
                 .clip(UiShapes.Button)
                 .background(background)
                 .then(if (outline != null) Modifier.border(1.dp, outline, UiShapes.Button) else Modifier)
-                // 禁用态整体变淡；只靠不可点用户看不出来，弹窗里尤其容易误以为是可点的文字。
-                .alpha(if (enabled) 1f else 0.4f)
                 .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
                 .padding(horizontal = if (small) 16.dp else 20.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -185,7 +196,7 @@ fun QduButton(
                     imageVector = leadingIcon,
                     contentDescription = null,
                     modifier = Modifier.size(if (small) 16.dp else 18.dp),
-                    tint = content.copy(alpha = if (enabled) 1f else 0.42f),
+                    tint = content,
                 )
             }
             Text(
@@ -396,6 +407,104 @@ fun QduField(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+            )
+        }
+    }
+}
+
+/**
+ * 「选一天」的统一弹窗：M3 [DatePickerDialog] 的设计系统封装，调用方只认
+ * [LocalDate]——UTC 毫秒与日历日的换算收敛在这里，不再散落到各个页面。
+ * 选了日期点「确定」回调新日期；没选就点「确定」只关窗不回调。
+ */
+@Composable
+fun QduDatePickerDialog(
+    initialDate: LocalDate,
+    onConfirm: (LocalDate) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val pickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initialDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(),
+    )
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            DialogButton(
+                text = "确定",
+                kind = QduButtonKind.Primary,
+                onClick = {
+                    pickerState.selectedDateMillis?.let { millis ->
+                        onConfirm(
+                            Instant.ofEpochMilli(millis)
+                                .atZone(ZoneOffset.UTC)
+                                .toLocalDate(),
+                        )
+                    }
+                    onDismiss()
+                },
+            )
+        },
+        dismissButton = {
+            DialogButton(
+                text = "取消",
+                kind = QduButtonKind.Ghost,
+                onClick = onDismiss,
+            )
+        },
+    ) {
+        DatePicker(state = pickerState)
+    }
+}
+
+
+/**
+ * 「选一项」的统一字段：描边卡片 + 上标签/下当前值 + 下拉箭头，点击打开对应选择器
+ * （学期、开学日期、时间、筛选项共用同一形态）。禁用态走灰字灰框，不叠透明度。
+ */
+@Composable
+fun QduSelectField(
+    label: String,
+    value: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: ImageVector = Icons.Outlined.ExpandMore,
+) {
+    val scheme = MaterialTheme.colorScheme
+    OutlinedCard(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier,
+        border = CardDefaults.outlinedCardBorder(enabled = enabled),
+        colors = CardDefaults.outlinedCardColors(
+            containerColor = if (enabled) scheme.surface else scheme.surfaceContainerHighest,
+            contentColor = if (enabled) scheme.onSurface else scheme.onSurfaceVariant,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

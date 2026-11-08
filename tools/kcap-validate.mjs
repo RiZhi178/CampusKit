@@ -46,6 +46,18 @@ const errors = [];
 const warn = (msg) => console.log(`  [警告] ${msg}`);
 const fail = (msg) => errors.push(msg);
 
+// 学院白名单：教务处《本科专业设置一览表（2025年9月）》的 28 个学院，独立抄录：
+// 与 kcap-clean.mjs 的词典互为对照，词典写错学院名在这里被拦下。
+// 空串 = 未分类（教学班号这类噪声班名，解不出学院允许留空）。
+const COLLEGES = new Set([
+  '历史学院', '经济学院', '法学院', '马克思主义学院', '政治与公共管理学院',
+  '教育科学学院', '体育学院', '文学与新闻传播学院', '外语学院', '数学与统计学院',
+  '物理科学学院', '化学化工学院', '生命科学学院', '机电工程学院', '材料科学与工程学院',
+  '自动化学院', '电气工程学院', '电子信息学院（微纳技术学院）', '计算机科学技术学院',
+  '环境与地理科学学院', '纺织服装学院', '青岛医学院', '口腔医学院', '公共卫生学院',
+  '药学院', '护理学院', '商学院', '艺术学院', '',
+]);
+
 // ---------- 周次串按 core 的语法解析 ----------
 // 「1-16」「1,3,5」「1-6,15-16」混排；分隔符兼容全角逗号/分号，区间兼容全角减号与波浪线。
 // core 解不出来为空的课在手机端整条消失，所以这里同样以「非空集合」为过线标准。
@@ -140,6 +152,9 @@ for (const s of index.semesters ?? []) {
     if (!cls.name || typeof cls.name !== 'string') fail(`${where} 班级名为空`);
     else if (classNames.has(cls.name)) fail(`${where} 班级名重复`);
     else classNames.add(cls.name);
+
+    if (typeof cls.college !== 'string') fail(`${where} 缺 college 字段（学院分类，允许空串=未分类）`);
+    else if (!COLLEGES.has(cls.college)) fail(`${where} college「${cls.college}」不在专业设置表的 28 个学院里`);
 
     if (!Array.isArray(cls.lessons) || cls.lessons.length === 0) {
       warn(`${where} 没有任何课程（空课表班级，确认是否预期）`);

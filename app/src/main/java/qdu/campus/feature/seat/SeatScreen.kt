@@ -4,7 +4,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -97,6 +96,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import qdu.campus.domain.model.Seat
+import qdu.campus.domain.model.SeatPosition
 import qdu.campus.domain.model.SeatReservation
 import qdu.campus.domain.model.SeatRoom
 import qdu.campus.domain.model.SeatStatus
@@ -105,7 +105,8 @@ import qdu.campus.platform.designsystem.AppLoading
 import qdu.campus.platform.designsystem.Banner
 import qdu.campus.platform.designsystem.BannerKind
 import qdu.campus.platform.designsystem.LocalStatusColors
-import qdu.campus.platform.designsystem.ErrWrap
+import qdu.campus.domain.model.SessionState
+import qdu.campus.platform.designsystem.SessionGate
 import qdu.campus.platform.designsystem.PlaceholderBlock
 import qdu.campus.platform.designsystem.QduBackButton
 import qdu.campus.platform.designsystem.QduButton
@@ -178,23 +179,22 @@ fun SeatScreen(
             }
 
             when {
-                // 房间列表是公开的，掉线时它照样有值，所以只看会话标记本身。
-                state.loggedOut -> ErrWrap(
-                    title = "座位系统未登录",
-                    reason = "座位与预约记录由统一认证放行，登录一次后即可在本页直接选座预约。",
-                    actions = {
-                        QduButton(text = "去登录", onClick = onOpenWebLogin)
-                        Spacer(Modifier.height(8.dp))
-                        QduButton(
-                            text = "已登录，重试",
-                            kind = QduButtonKind.Tonal,
-                            onClick = {
-                                viewModel.retryLogin()
-                                viewModel.refresh()
-                            },
-                        )
+                // 门禁以统一认证会话为准：未登录一律不放行（房间加载成功也不给看）；
+                // loggedOut 兜中途掉线——统一认证还在但座位系统会话丢了。
+                state.session != SessionState.Valid || state.loggedOut -> SessionGate(
+                    title = "预约座位需要先登录",
+                    reason = "登录后就能选座、查看你的预约了。",
+                    onLogin = onOpenWebLogin,
+                    modifier = Modifier.fillMaxSize(),
+                    onRetry = {
+                        viewModel.retryLogin()
+                        viewModel.refresh()
                     },
+                    retryLabel = "已登录，重试",
                 )
+
+                // 统一 loading：首次数据（房间清单）没就绪前不把半成品推给用户
+                state.loadingRooms && state.rooms.isEmpty() -> AppLoading(modifier = Modifier.fillMaxSize())
 
                 state.tab == SeatTab.Pick -> PickPane(
                     state = state,
@@ -341,12 +341,8 @@ private fun PickPane(
     onSeat: (SeatEntry) -> Unit,
 ) {
     if (state.rooms.isEmpty()) {
-        if (state.loadingRooms) {
-            Box(Modifier.fillMaxWidth().padding(vertical = 32.dp), Alignment.Center) { AppLoading() }
-        } else {
-            // 这一页没有下拉刷新，只有顶栏的刷新按钮；提示要指向真实存在的那个入口。
-            PlaceholderBlock(title = "没有可用的自习室", description = "点右上角刷新，或稍后再试。")
-        }
+        // 首载由页面级统一 loading 接管；走到这里说明加载结束仍没有房间，才是真空态。
+        PlaceholderBlock(title = "没有可用的自习室", description = "点右上角刷新，或稍后再试。")
         return
     }
 
@@ -553,11 +549,11 @@ private fun SeatSwatch(status: SeatStatus) {
 /**
  * 座位平面图。按座位数分两档（分界见 [SeatTiling.FULL_MAP_LIMIT]）：
  *
- * - **32 座以内**：网格全图。画布按房间比例给（宽占满、高按 0.78），座位按服务端的
- *   `coordinate` 百分比落点，靠墙一圈与中间桌组一眼能看出来。格子边长取房间里最小相邻
- *   间距的 86%，保证互不重叠；坐标过密时改成等距网格，并在「放大」里看真实位置。
+ * - **32 座以内**：网格全图。座位抽象成圆角矩形，房间抽象成格子边长一致的网格，
+ *   座位按坐标的相对次序落格：挨得近的坐标归并到同一格线，同桌座位自然聚成一组，
+ *   明显大的间距（过道）多留一格，墙体只作画布边界不占格。
  * - **超过 32 座**：瓦片法。一次只画一片，顶上用片名切换，底下用概览图定位——
- *   一屏塞不下几十上百个座位，硬塞只会既看不清也点不准。
+ *   一屏塞不下几十上百个座位，硬塞只会既看不清也点不准。片内同样用网格。
  *
  * 所有可点座位的热区固定 48dp，与相邻座位的间距不小于 48dp；做不到就不在这一层开放点击，
  * 让用户去「放大」里选。状态仍是「填充 + 边框实虚 + 删除线」，颜色之外还有第二重编码。
@@ -579,50 +575,21 @@ private fun SeatMapCard(
     SectionCard(modifier = modifier) {
         if (useTiles) {
             TiledSeatMap(entries = placed, onSelect = onSelect)
-        } else {
-            BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                val density = LocalDensity.current
-                val metrics = remember(placed, maxWidth, density) {
-                    seatMapMetrics(placed, maxWidth, density)
-                }
-                if (metrics != null) {
-                    Column {
-                        if (metrics.cell < SEAT_LABEL_MIN_CELL) {
-                            // 房间不大但坐标很密时，按真实位置画会缩成一堆点；这时退回等距网格，
-                            // 把每一排、每一列的相对次序保留下来，编号也能看清。
-                            SeatTileCanvas(
-                                tile = SeatTile(
-                                    label = "全图",
-                                    bounds = SeatTileBounds(0f, 0f, 100f, 100f),
-                                    seats = placed.map { it.seat },
-                                ),
-                                entries = placed,
-                                onSelect = onSelect,
-                            )
-                        } else {
-                            SeatCanvas(
-                                placed = placed,
-                                cell = metrics.cell,
-                                canvas = metrics.canvas,
-                                showLabel = metrics.showLabel,
-                                // 相邻座位的 48dp 热区会互相压住时，这张图只看不点，选座走「放大」。
-                                interactive = metrics.step >= SEAT_TOUCH,
-                                onSelect = onSelect,
-                            )
-                        }
-                        // 两种画法共用一个「放大」入口：以前等距网格那一支只写了提示却没给按钮。
-                        MapHintRow(
-                            text = when {
-                                metrics.cell < SEAT_LABEL_MIN_CELL ->
-                                    "按排与列等距摆放；房间的真实位置在「放大」里看"
-                                metrics.step < SEAT_TOUCH ->
-                                    "座位较密，图上不直接选座；点「放大」再选"
-                                else -> "按房间实际位置摆放，编号是房间内的座位号"
-                            },
-                            onZoom = { zoomed = true },
-                        )
-                    }
-                }
+        } else if (placed.isNotEmpty()) {
+            Column {
+                SeatTileCanvas(
+                    tile = SeatTile(
+                        label = "全图",
+                        bounds = SeatTileBounds(0f, 0f, 100f, 100f),
+                        seats = placed.map { it.seat },
+                    ),
+                    entries = placed,
+                    onSelect = onSelect,
+                )
+                MapHintRow(
+                    text = "等距网格按相对位置摆放，过道多留一格；编号是房间内的座位号",
+                    onZoom = { zoomed = true },
+                )
             }
         }
 
@@ -725,7 +692,7 @@ private fun TiledSeatMap(
         )
 
         Text(
-            text = "整间 ${entries.size} 座，分 ${tiles.size} 片；片内格子随宽度缩放，热区一律 48dp，均可直接点选。",
+            text = "整间 ${entries.size} 座，分 ${tiles.size} 片；片内按等距网格摆放，热区一律 48dp，超出宽度可左右拖动，均可直接点选。",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -739,46 +706,42 @@ private fun TiledSeatMap(
     }
 }
 
-/** 片内画布：在片的小范围内重新按百分比落点，并按最小相邻间距把格距撑到 48dp + 10dp。 */
+/** 片内画布：座位抽象成圆角矩形，房间抽象成格子边长一致的等距网格；热区不小于 48dp，画布宽于可用区时横向滚动。 */
 @Composable
 private fun SeatTileCanvas(
     tile: SeatTile,
     entries: List<SeatEntry>,
     onSelect: (SeatEntry) -> Unit,
+    cellSize: Dp = SEAT_TILE_CELL,
 ) {
     val density = LocalDensity.current
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val available = maxWidth
-        val layout = remember(tile, available, density) {
-            tileLayout(tile, 12.dp, density, available)
-        }
+    val layout = remember(tile, density, cellSize) { tileLayout(tile, 12.dp, density, cellSize) }
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+    ) {
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+                .size(layout.width, layout.height)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(layout.width, layout.height)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer)
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
-            ) {
-                entries.forEach { entry ->
-                    val position = entry.seat.position ?: return@forEach
-                    Box(
-                        modifier = Modifier.offset(
-                            x = layout.xOf(position.x),
-                            y = layout.yOf(position.y),
-                        ),
-                    ) {
-                        SeatCell(
-                            entry = entry,
-                            onClick = { onSelect(entry) },
-                            size = layout.cell,
-                            hitSize = maxOf(layout.hit, layout.cell),
-                        )
-                    }
+            entries.forEach { entry ->
+                val position = entry.seat.position ?: return@forEach
+                Box(
+                    modifier = Modifier.offset(
+                        x = layout.xOf(position.x),
+                        y = layout.yOf(position.y),
+                    ),
+                ) {
+                    SeatCell(
+                        entry = entry,
+                        onClick = { onSelect(entry) },
+                        size = layout.cell,
+                        hitSize = maxOf(layout.hit, layout.cell),
+                    )
                 }
             }
         }
@@ -883,11 +846,8 @@ private fun TileOverview(
     }
 }
 
-/** 片内座位的默认边长，也是最外层可点区域。 */
+/** 片内座位的视觉边长，固定 48dp，与热区一致。 */
 private val SEAT_TILE_CELL = 48.dp
-
-/** 视觉格子的下限；热区仍是 [SEAT_TOUCH]，只是里面画的小方块变小。 */
-private val SEAT_TILE_MIN_CELL = 32.dp
 
 /** 所有可点座位的热区，取自 core 里的同一口径。 */
 private val SEAT_TOUCH = SeatTiling.MIN_TOUCH_DP.dp
@@ -903,164 +863,124 @@ private class TileLayout(
 )
 
 /**
- * 片内取景：把这一片里出现过的 x、y 各自排序，按序号排成等距的行列。
+ * 片内取景：把座位放进格子边长一致的等距网格，只保留相对位置，不按真实距离绘制。
  *
- * 为什么不用原始百分比：片内只要有两个座位挨得近（服务端坐标抖动 0.5% 就会发生），
- * 按百分比放大后整片画布会被拉到屏幕外，剩下的座位全跑到横向滚动区里，看起来像丢了。
- * 瓦片本身就只交代「这一片里谁挨着谁」，等距网格足够表达；跨片的相对位置由概览图负责。
- *
- * 边长优先 48dp；一行放不下就把视觉格子按可用宽度压到 32dp 下限，
- * 但格子间距（也是热区起点间距）始终不小于 48dp，所以相邻热区不会重叠、点 A 不会落到 B。
- * 再放不下就交给外层横向滚动。
+ * 先把横纵各自挨得近的坐标归并成格线（抖动算同一条线），再按次序排格号；
+ * 相邻格线间距明显大于同桌间距（过道）时多空一格，墙体只作画布边界不占格。
+ * 桌组因此自然聚拢，不会被服务端的坐标抖动拆散。
  */
 private fun tileLayout(
     tile: SeatTile,
     padding: Dp,
     density: Density,
-    available: Dp,
+    cellSize: Dp = SEAT_TILE_CELL,
 ): TileLayout {
-    val xs = tile.seats.mapNotNull { it.position?.x }.distinct().sorted()
-    val ys = tile.seats.mapNotNull { it.position?.y }.distinct().sorted()
-    val cols = xs.size.coerceAtLeast(1)
-    val rows = ys.size.coerceAtLeast(1)
+    val seats = tile.seats.mapNotNull { it.position }
     return with(density) {
+        val cellPx = cellSize.toPx()
+        val hitPx = maxOf(SEAT_TOUCH.toPx(), cellPx)
         val gapPx = 8.dp.toPx()
-        val hitPx = SEAT_TOUCH.toPx()
         val padPx = padding.toPx()
-        val availPx = (available.toPx() - padPx * 2).coerceAtLeast(1f)
-
-        var cellPx = SEAT_TILE_CELL.toPx()
-        var stepPx = cellPx + gapPx
-        if (cols * stepPx - gapPx > availPx) {
-            val fitStep = (availPx + gapPx) / cols
-            cellPx = (fitStep - gapPx).coerceAtLeast(SEAT_TILE_MIN_CELL.toPx())
-            stepPx = maxOf(cellPx + gapPx, hitPx)
+        val stepPx = cellPx + gapPx
+        if (seats.isEmpty()) {
+            return@with TileLayout(
+                width = (hitPx + padPx * 2).toDp(),
+                height = (hitPx + padPx * 2).toDp(),
+                cell = cellSize,
+                hit = hitPx.toDp(),
+                xOf = { padPx.toDp() },
+                yOf = { padPx.toDp() },
+            )
         }
-        // 画布按热区算尺寸，最后一个座位的 48dp 不会画到边框外面。
-        val widthPx = (cols - 1) * stepPx + hitPx + padPx * 2
-        val heightPx = (rows - 1) * stepPx + hitPx + padPx * 2
+        val columns = clusterAxis(seats.map { it.x })
+        val rows = clusterAxis(seats.map { it.y })
+        val unitX = minLineGap(seats, axisX = true)
+        val unitY = minLineGap(seats, axisX = false)
+        val colIndex = gridIndices(columns, aisleThreshold(unitX))
+        val rowIndex = gridIndices(rows, aisleThreshold(unitY))
+        val maxCol = colIndex.lastOrNull() ?: 0
+        val maxRow = rowIndex.lastOrNull() ?: 0
         TileLayout(
-            width = widthPx.toDp(),
-            height = heightPx.toDp(),
-            cell = cellPx.toDp(),
+            width = (padPx * 2 + maxCol * stepPx + cellPx).toDp(),
+            height = (padPx * 2 + maxRow * stepPx + cellPx).toDp(),
+            cell = cellSize,
             hit = hitPx.toDp(),
-            xOf = { x -> (padPx + xs.nearestIndex(x) * stepPx).toDp() },
-            yOf = { y -> (padPx + ys.nearestIndex(y) * stepPx).toDp() },
+            xOf = { x -> (padPx + colIndex[columns.nearestIndex(x)] * stepPx).toDp() },
+            yOf = { y -> (padPx + rowIndex[rows.nearestIndex(y)] * stepPx).toDp() },
         )
     }
 }
 
-/** 坐标 → 列/行序号。浮点数用最近邻匹配，避免 33.300003 这类抖动查不到自己。 */
+/** 同桌座位的正常间距；过道判定阈值取它的 1.5 倍。量不出来时不留过道格。 */
+private fun aisleThreshold(unit: Float?): Float =
+    if (unit != null && unit > 0f) unit * SEAT_AISLE_FACTOR else Float.MAX_VALUE
+
+/** 坐标抖动的归并半径，百分比单位；实测同一排的抖动不超过 1。 */
+private const val SEAT_COORD_EPS = 1.0f
+
+/** 相邻格线间距超过同桌正常间距的这个倍数，就认定中间隔着一条过道，多空一格。 */
+private const val SEAT_AISLE_FACTOR = 1.5f
+
+/**
+ * 把一维坐标归并成格线：排序后相邻差在 [SEAT_COORD_EPS] 内的算同一条线，取均值。
+ * 返回升序格线坐标。
+ */
+private fun clusterAxis(values: List<Float>): List<Float> {
+    if (values.isEmpty()) return emptyList()
+    val sorted = values.sorted()
+    val lines = ArrayList<Float>()
+    var groupStart = 0
+    for (i in 1 until sorted.size) {
+        if (sorted[i] - sorted[i - 1] > SEAT_COORD_EPS) {
+            var sum = 0f
+            for (j in groupStart until i) sum += sorted[j]
+            lines.add(sum / (i - groupStart))
+            groupStart = i
+        }
+    }
+    var sum = 0f
+    for (j in groupStart until sorted.size) sum += sorted[j]
+    lines.add(sum / (sorted.size - groupStart))
+    return lines
+}
+
+/** 格线排格号：首条为 0，相邻间距超过 [aisleThreshold]（过道）时隔 2 格，否则挨着排。 */
+private fun gridIndices(lines: List<Float>, aisleThreshold: Float): IntArray {
+    val indices = IntArray(lines.size)
+    for (i in 1 until lines.size) {
+        indices[i] = indices[i - 1] + if (lines[i] - lines[i - 1] > aisleThreshold) 2 else 1
+    }
+    return indices
+}
+
+/** 坐标到最近格线的下标；空表返回 0，让调用方兜底。 */
 private fun List<Float>.nearestIndex(value: Float): Int {
     if (isEmpty()) return 0
     var best = 0
-    var bestDiff = Float.MAX_VALUE
-    forEachIndexed { index, candidate ->
-        val diff = kotlin.math.abs(candidate - value)
-        if (diff < bestDiff) {
-            bestDiff = diff
+    var bestDist = Float.MAX_VALUE
+    forEachIndexed { index, line ->
+        val dist = kotlin.math.abs(line - value)
+        if (dist < bestDist) {
+            bestDist = dist
             best = index
         }
     }
     return best
 }
 
-/** 放大视图的基础倍率：够看清两位数编号，又不至于一个座位占满屏幕。密房间会按间距再抬高。 */
-private const val SEAT_ZOOM = 2.4f
-
-/** 画布宽高比。房间本身没给尺寸，取一个常见的自习室比例，宁可略扁不拉太高。 */
-private const val SEAT_CANVAS_ASPECT = 0.78f
-
-private data class SeatMapMetrics(
-    val canvas: DpSize,
-    val cell: Dp,
-    /** 相邻座位的最小间距，决定这一层能不能直接点选。 */
-    val step: Dp,
-    val showLabel: Boolean,
-)
-
-/** 小于这个格宽就不画编号，硬塞会糊成一团。 */
-private val SEAT_LABEL_MIN_CELL = 22.dp
-
-/**
- * 用最小相邻间距定格子边长：同一排相邻两个座位的百分比差乘以画布宽度，就是它们之间的实际距离。
- * 取 86% 给边界留白。房间只有一个座位时退回一个默认格宽。
- */
-private fun seatMapMetrics(
-    placed: List<SeatEntry>,
-    maxWidth: Dp,
-    density: Density,
-): SeatMapMetrics? {
-    val positions = placed.mapNotNull { it.seat.position }
-    if (positions.isEmpty()) return null
-    val canvasH = maxWidth * SEAT_CANVAS_ASPECT
-    return with(density) {
-        val gapX = minGapPercent(positions.map { it.x }) ?: 6f
-        val gapY = minGapPercent(positions.map { it.y }) ?: 8f
-        val stepX = maxWidth.value * gapX / 100f
-        val stepY = canvasH.value * gapY / 100f
-        val side = minOf(stepX * 0.86f, stepY * 0.86f, 40f).coerceAtLeast(9f)
-        val cell = side.dp
-        SeatMapMetrics(
-            canvas = DpSize(maxWidth, canvasH),
-            cell = cell,
-            step = minOf(stepX, stepY).dp,
-            showLabel = cell >= SEAT_LABEL_MIN_CELL,
-        )
-    }
-}
-
-/** 一维坐标里最小的非零间距（百分比）。座位都叠在一条线上时返回 null。 */
-private fun minGapPercent(values: List<Float>): Float? {
-    val sorted = values.sorted()
-    var best: Float? = null
-    for (i in 1 until sorted.size) {
-        val gap = sorted[i] - sorted[i - 1]
-        if (gap > 0.5f && (best == null || gap < best)) best = gap
-    }
-    return best
-}
-
-@Composable
-private fun SeatCanvas(
-    placed: List<SeatEntry>,
-    cell: Dp,
-    canvas: DpSize,
-    showLabel: Boolean,
-    interactive: Boolean,
-    onSelect: (SeatEntry) -> Unit,
-) {
-    // 放大后视觉格子可能超过 48dp，热区要跟着长，否则点得到方块边却没反应。
-    val hit = maxOf(SEAT_TOUCH, cell)
-    Box(
-        modifier = Modifier
-            .size(canvas)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceContainer)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp)),
-    ) {
-        placed.forEach { entry ->
-            val position = entry.seat.position ?: return@forEach
-            Box(
-                modifier = Modifier.offset(
-                    x = canvas.width * (position.x / 100f) - hit / 2f,
-                    y = canvas.height * (position.y / 100f) - hit / 2f,
-                ),
-            ) {
-                SeatCell(
-                    entry = entry,
-                    onClick = { onSelect(entry) },
-                    size = cell,
-                    hitSize = hit,
-                    showLabel = showLabel,
-                    interactive = interactive,
-                )
-            }
+/** 同一行（y 相同）相邻座位的最小 x 间距；[axisX] 为 false 时求同一列的最小 y 间距。无同行/列座位时返回 null。 */
+private fun minLineGap(seats: List<SeatPosition>, axisX: Boolean): Float? {
+    var best = Float.MAX_VALUE
+    seats.groupBy { if (axisX) it.y else it.x }.values.forEach { line ->
+        val values = line.map { if (axisX) it.x else it.y }.sorted()
+        for (i in 1 until values.size) {
+            val gap = values[i] - values[i - 1]
+            if (gap > 0f && gap < best) best = gap
         }
     }
+    return if (best == Float.MAX_VALUE) null else best
 }
 
-/** 放大视图：整块画布按倍率重画，装在双向滚动里，大房间可以拖着看。 */
 @Composable
 private fun ZoomedSeatDialog(
     placed: List<SeatEntry>,
@@ -1082,30 +1002,23 @@ private fun ZoomedSeatDialog(
                     QduButton(text = "关闭", onClick = onDismiss, kind = QduButtonKind.Ghost, small = true)
                 }
                 Spacer(Modifier.height(10.dp))
-                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-                    val density = LocalDensity.current
-                    val metrics = remember(placed, maxWidth, density) {
-                        seatMapMetrics(placed, maxWidth, density)
-                    } ?: return@BoxWithConstraints
-                    // 密房间里 2.4 倍还不够把相邻座位拉开 48dp，此时按间距再抬倍率，
-                    // 保证放大图里每个热区互不重叠。
-                    val zoom = SeatTiling.zoomForTouch(metrics.step.value, SEAT_ZOOM)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(420.dp)
-                            .horizontalScroll(rememberScrollState())
-                            .verticalScroll(rememberScrollState()),
-                    ) {
-                        SeatCanvas(
-                            placed = placed,
-                            cell = metrics.cell * zoom,
-                            canvas = DpSize(metrics.canvas.width * zoom, metrics.canvas.height * zoom),
-                            showLabel = true,
-                            interactive = true,
-                            onSelect = onSelect,
-                        )
-                    }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(420.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    SeatTileCanvas(
+                        tile = SeatTile(
+                            label = "全图",
+                            bounds = SeatTileBounds(0f, 0f, 100f, 100f),
+                            seats = placed.map { it.seat },
+                        ),
+                        entries = placed,
+                        onSelect = onSelect,
+                        // 放大图把格子抬到 1.5 倍，编号更清楚；热区跟着格子走。
+                        cellSize = SEAT_TILE_CELL * 1.5f,
+                    )
                 }
             }
         }

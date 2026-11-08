@@ -1,6 +1,8 @@
 package qdu.campus.feature.notice
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -164,11 +166,27 @@ fun NoticeScreen(
             }
 
             if (state.notices.isEmpty()) {
-                PlaceholderBlock(
-                    title = "还没有通知",
-                    description = "下拉刷新或点右上角刷新。",
-                    modifier = Modifier.padding(24.dp),
-                )
+                // 空态也要能下拉刷新：清缓存后这里是唯一的刷新入口，提示写着「下拉」
+                // 就必须拉得动——放进可滚动容器里，手势才传得进 PullToRefreshBox。
+                PullToRefreshBox(
+                    isRefreshing = state.isRefreshing,
+                    onRefresh = viewModel::refresh,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        PlaceholderBlock(
+                            title = "还没有通知",
+                            description = "下拉刷新或点右上角刷新。",
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(24.dp),
+                        )
+                    }
+                }
                 return@Column
             }
 

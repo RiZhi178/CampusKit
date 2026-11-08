@@ -286,12 +286,10 @@ interface SettingsRepository {
     suspend fun setUndergraduateClasses(value: Set<String>)
 
     /**
-     * 清掉课表相关的全部本机状态：学期、起始日、节次覆盖、层次与本科班级勾选。
-     *
-     * 只清 Room 的课表表是不够的——本科课表的课程由班级勾选与随包资产实时推导，
-     * 勾选不清，课表「清除」后立刻原样回来。
+     * 只清「已选班级课表」：勾选、应用时间与节次覆盖。学期与起始日、层次保留
+     * （那是配置不是缓存）；种子数据（班级总表/校历/楼栋/学期元数据）一律不动。
      */
-    suspend fun clearTimetableData()
+    suspend fun clearChosenClasses()
 
     /** 清掉全部本机设置与偏好（含主题、房号绑定、通知关键词与引导标记），回到首次安装状态。 */
     suspend fun clearAllData()

@@ -93,6 +93,8 @@ data class UgTimetableEntryEntity(
     @PrimaryKey val id: String,
     val semesterId: String,
     val className: String,
+    /** 班级归属学院（清洗阶段对照专业设置表分好）；空串 = 未分类。 */
+    val college: String,
     val name: String,
     val code: String,
     /** 平行教学班组里把组内教师都列上：学生任选其一。 */

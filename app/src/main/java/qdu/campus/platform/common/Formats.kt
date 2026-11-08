@@ -111,6 +111,17 @@ object Formats {
     fun monthDayDot(date: LocalDate): String =
         String.format(Locale.CHINA, "%02d·%02d", date.monthValue, date.dayOfMonth)
 
+    /** 「11.02-11.08」，课表周切换条的日期区间，省横向空间不用汉字。 */
+    fun dateRangeDot(start: LocalDate, end: LocalDate): String =
+        String.format(
+            Locale.CHINA,
+            "%02d.%02d-%02d.%02d",
+            start.monthValue,
+            start.dayOfMonth,
+            end.monthValue,
+            end.dayOfMonth,
+        )
+
     /**
      * 学期标识转可读名：`2026-2027-1` → 「2026–2027 学年 第一学期」。
      * 校历没有单独的名称接口，标识本身就是人可读的，解析不了时原样显示，

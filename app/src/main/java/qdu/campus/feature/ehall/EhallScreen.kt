@@ -5,11 +5,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
@@ -38,11 +36,9 @@ import qdu.campus.domain.model.EhallTaskCounts
 import qdu.campus.platform.designsystem.AppLoading
 import qdu.campus.platform.designsystem.Banner
 import qdu.campus.platform.designsystem.BannerKind
-import qdu.campus.platform.designsystem.ErrWrap
+import qdu.campus.platform.designsystem.SessionGate
 import qdu.campus.platform.designsystem.PlaceholderBlock
 import qdu.campus.platform.designsystem.QduBackButton
-import qdu.campus.platform.designsystem.QduButton
-import qdu.campus.platform.designsystem.QduButtonKind
 import qdu.campus.platform.designsystem.QduField
 import qdu.campus.platform.designsystem.StatusLevel
 import qdu.campus.platform.designsystem.StatusMark
@@ -96,19 +92,16 @@ fun EhallScreen(
             }
 
             when {
-                state.loggedOut -> ErrWrap(
-                    title = "办事大厅未登录",
-                    reason = "服务清单由统一认证放行，登录一次后即可在本页直接打开各项服务。",
-                    actions = {
-                        QduButton(text = "去登录", onClick = onOpenWebLogin)
-                        Spacer(Modifier.height(8.dp))
-                        QduButton(
-                            text = "已登录，重试",
-                            kind = QduButtonKind.Tonal,
-                            onClick = viewModel::retryLogin,
-                        )
-                    },
+                state.loggedOut -> SessionGate(
+                    title = "办事大厅需要先登录",
+                    reason = "登录后就能使用大厅里的各项服务了。",
+                    onLogin = onOpenWebLogin,
+                    modifier = Modifier.fillMaxSize(),
+                    onRetry = viewModel::retryLogin,
+                    retryLabel = "已登录，重试",
                 )
+
+                state.loading && state.services.isEmpty() -> AppLoading(modifier = Modifier.fillMaxSize())
 
                 else -> {
                     if (state.services.isNotEmpty()) {
@@ -119,13 +112,6 @@ fun EhallScreen(
                         )
                     }
                     when {
-                        state.loading && state.services.isEmpty() -> Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 48.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) { AppLoading() }
-
                         state.grouped.isEmpty() -> PlaceholderBlock(
                             title = if (state.query.isBlank()) "没有可用的服务" else "没有匹配的服务",
                             description = if (state.query.isBlank()) {

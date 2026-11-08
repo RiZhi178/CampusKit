@@ -6,10 +6,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * 会话形态诊断：回答「本机存了什么形态的凭据」，不回答「值是什么」。
+ * 会话诊断：用白话报各系统当前能不能用，不出现凭据值，也不出现 Cookie、令牌这类名词。
  *
- * 界面说未登录、用户却确信登过时，光看状态位分不出是没存到、存的不是 JWT、
- * 还是 JWT 已经过期。这里把四种凭据的形态各报一行，全部只含结构与名字。
+ * 某个功能打不开时，用户先看这里是不是「未登录」。只读本机已存的凭据在不在，
  * 不做网络探测，也不触发回灌——诊断不该改变它要诊断的东西。
  */
 @Singleton
@@ -17,15 +16,14 @@ class SessionDiagnostics @Inject constructor(
     private val credentials: CredentialStore,
 ) {
 
-    fun snapshot(session: SessionState): List<String> = listOf(
+    fun snapshot(session: SessionState, electricityRoomBound: Boolean): List<String> = listOf(
         "统一认证：" + when (session) {
             SessionState.Valid -> "已登录"
-            SessionState.Expired -> "已过期"
-            SessionState.Unknown -> "未校验或无凭据"
-        } + "（最近一次校验的结论，不是实时探测）",
-        "authserver Cookie：" + CredentialShape.cookies(credentials.cookie(WebDomain.AUTH.host)),
-        "研究生系统令牌：" + CredentialShape.jwt(credentials.yjsxtToken()),
-        "图书馆检索 Cookie：" + CredentialShape.cookies(credentials.cookie(WebDomain.LIB_SEARCH.host)),
-        "电费 sessionToken：" + CredentialShape.opaque(credentials.zzmpToken()),
+            SessionState.Expired -> "登录已过期"
+            SessionState.Unknown -> "未登录"
+        },
+        "研究生系统：" + if (credentials.yjsxtToken().isNullOrBlank()) "未登录" else "已登录",
+        "图书馆：" + if (credentials.cookie(WebDomain.LIB_SEARCH.host).isNullOrBlank()) "未登录" else "已登录",
+        "电费：" + if (electricityRoomBound) "已绑定房间" else "未绑定房间",
     )
 }

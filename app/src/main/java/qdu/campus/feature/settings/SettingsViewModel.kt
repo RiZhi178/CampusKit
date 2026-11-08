@@ -20,6 +20,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -30,7 +31,7 @@ data class SettingsUiState(
     val mode: AppearanceMode = AppearanceMode.SYSTEM,
     val message: String? = null,
     val update: UpdateCheckState = UpdateCheckState.Idle,
-    /** 非 null 时弹会话诊断窗。只含形态描述，不含任何凭据值。 */
+    /** 非 null 时弹会话诊断窗。只含各系统登录状态的白话说明，不含任何凭据值。 */
     val diagnostics: List<String>? = null,
 )
 
@@ -89,15 +90,16 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 val dao = database.timetableDao()
+                // 研究生同步来的课表缓存清掉，重新同步即可恢复；terms 是学期元数据
+                // （种子与研究生同步共用），动它会让本科侧报「没有这个学期」——保留。
                 dao.clearCourses()
                 dao.clearNoScheduleAll()
                 dao.clearSectionsAll()
-                dao.clearTerms()
-                // 本科课表的课程是「班级勾选 + 随包资产」实时推导的，不落 Room；
-                // 勾选与学期、层次不清，Room 清完课表立刻原样回来。
-                settings.clearTimetableData()
+                // 只清已选班级课表（勾选/应用时间/节次覆盖）；班级总表、校历、楼栋、
+                // 学期元数据这些种子与指纹一律不动——清缓存不能把系统数据清掉。
+                settings.clearChosenClasses()
             }
-            _state.value = _state.value.copy(message = "课表缓存已清除")
+            _state.value = _state.value.copy(message = "已选班级课表已清除，学期与种子数据保留")
         }
     }
 
@@ -136,11 +138,12 @@ class SettingsViewModel @Inject constructor(
         _state.value = _state.value.copy(update = UpdateCheckState.Idle)
     }
 
-    /** 读加密存储要碰磁盘，放 IO；诊断本身不发请求、不改任何凭据。 */
+    /** 读加密存储与房号要碰磁盘，放 IO；诊断本身不发请求、不改任何凭据。 */
     fun openDiagnostics() {
         viewModelScope.launch {
             val lines = withContext(Dispatchers.IO) {
-                sessionDiagnostics.snapshot(_state.value.session)
+                val roomBound = settings.dormElectricityCode.first().isNotBlank()
+                sessionDiagnostics.snapshot(_state.value.session, roomBound)
             }
             _state.value = _state.value.copy(diagnostics = lines)
         }

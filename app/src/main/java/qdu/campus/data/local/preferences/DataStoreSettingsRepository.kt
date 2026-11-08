@@ -40,6 +40,7 @@ class DataStoreSettingsRepository @Inject constructor(
         val timetableLevel = stringPreferencesKey("timetable_level")
         val undergraduateClasses = stringPreferencesKey("ug_classes")
         val undergraduateAppliedAt = longPreferencesKey("ug_applied_at")
+        val updateDismissedTag = stringPreferencesKey("update_dismissed_tag")
     }
 
     override val semesterId: Flow<String> =
@@ -116,6 +117,13 @@ class DataStoreSettingsRepository @Inject constructor(
     override val undergraduateAppliedAt: Flow<Long?> =
         context.dataStore.data.map { it[Keys.undergraduateAppliedAt] }
 
+    override val updateDismissedTag: Flow<String> =
+        context.dataStore.data.map { it[Keys.updateDismissedTag] ?: "" }
+
+    override suspend fun setUpdateDismissedTag(value: String) {
+        context.dataStore.edit { it[Keys.updateDismissedTag] = value }
+    }
+
     override suspend fun setSemesterId(value: String) {
         context.dataStore.edit { it[Keys.semesterId] = value }
     }
@@ -180,14 +188,11 @@ class DataStoreSettingsRepository @Inject constructor(
         }
     }
 
-    override suspend fun clearTimetableData() {
+    override suspend fun clearChosenClasses() {
         context.dataStore.edit {
-            it.remove(Keys.semesterId)
-            it.remove(Keys.termStartDate)
-            it.remove(Keys.sectionTimeOverrides)
-            it.remove(Keys.timetableLevel)
             it.remove(Keys.undergraduateClasses)
             it.remove(Keys.undergraduateAppliedAt)
+            it.remove(Keys.sectionTimeOverrides)
         }
     }
 

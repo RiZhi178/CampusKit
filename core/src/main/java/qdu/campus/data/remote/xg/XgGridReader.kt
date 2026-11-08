@@ -38,6 +38,14 @@ object XgGridReader {
             table.className().contains("grid", true) ||
             table.`is`(".form-table")
 
+    /**
+     * 空表由服务端渲染成一格横跨整行的提示语，它不是数据行。
+     *
+     * 请假列表的表头是 `td` 不是 `th`，走不了 [read]，但空态口径与这里一样，
+     * 所以把这条判定单独暴露出去共用。
+     */
+    fun isPlaceholder(row: Element): Boolean = isPlaceholder(row, cellsOf(row))
+
     private fun toGrid(table: Element): XgGrid {
         val rows = rowsOf(table)
         val headerIndex = rows.indexOfFirst { row -> row.select("th").isNotEmpty() }
