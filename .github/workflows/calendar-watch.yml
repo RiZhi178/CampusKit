@@ -88,11 +88,14 @@ jobs:
               https://jwc.qdu.edu.cn/xl.htm
           done
           echo "::endgroup::"
-          echo "::group::node fetch 的 cause"
+          echo "::group::node:https（family=4，脚本实际用的传输）"
           node -e "
-          fetch('https://jwc.qdu.edu.cn/xl.htm', { headers: { 'User-Agent': 'Mozilla/5.0' } })
-            .then((r) => console.log('OK http=' + r.status))
-            .catch((e) => console.log('FAIL', e.message, '| cause:', e.cause?.code, e.cause?.message, e.cause?.hostname));
+          const https = require('node:https');
+          const req = https.get('https://jwc.qdu.edu.cn/xl.htm',
+            { family: 4, headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 20000 },
+            (r) => { console.log('status=' + r.statusCode + ' ip=' + r.socket.remoteAddress); r.resume(); });
+          req.on('timeout', () => { console.log('TIMEOUT'); req.destroy(); });
+          req.on('error', (e) => console.log('FAIL ' + e.code + ' ' + e.message));
           "
           echo "::endgroup::"
 

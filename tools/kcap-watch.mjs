@@ -22,11 +22,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import dns from 'node:dns';
-
-// 校方站点对外先给 AAAA，而 CI runner 只有 IPv4 出口：不强制 IPv4 会一路 ETIMEDOUT
-// （runner 上实测：curl 默认与 -4 都是 200，-6 立刻失败，node fetch 则卡到超时）。
-dns.setDefaultResultOrder('ipv4first');
+import https from 'node:https';
 
 const JWC = 'https://jwc.qdu.edu.cn';
 const LIST_PATH = '/xxgk/kcap.htm';
@@ -38,14 +34,42 @@ function arg(name) {
   return at >= 0 ? process.argv[at + 1] : null;
 }
 
-async function fetchText(url, extraHeaders = {}) {
-  const res = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0', Referer: JWC + LIST_PATH, ...extraHeaders },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(30_000),
+/**
+ * 不走全局 fetch：CI runner 上 undici 访问 jwc.qdu.edu.cn 一律 ETIMEDOUT，
+ * 而同一台 runner 上 curl、node:https + family:4、直连 211.64.164.2 全是 200
+ * （DNS 的 A 记录本来就排在最前，ipv4first 也救不了）。所以这里直接用 node:https，
+ * 强制 IPv4，手动跟随最多 5 次跳转。
+ */
+function httpGet(url, { headers = {}, timeout = 30_000, binary = false } = {}) {
+  return new Promise((resolve, reject) => {
+    const go = (target, hops) => {
+      if (hops > 5) return reject(new Error(`跳转超过 5 次 @ ${url}`));
+      const req = https.get(target, { family: 4, headers, timeout }, (res) => {
+        const status = res.statusCode ?? 0;
+        if (status >= 300 && status < 400 && res.headers.location) {
+          res.resume();
+          return go(new URL(res.headers.location, target).href, hops + 1);
+        }
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => {
+          const buf = Buffer.concat(chunks);
+          resolve({ status, headers: res.headers, body: binary ? buf : buf.toString('utf8') });
+        });
+      });
+      req.on('timeout', () => req.destroy(new Error(`请求超时 ${timeout}ms @ ${target}`)));
+      req.on('error', reject);
+    };
+    go(url, 0);
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status} @ ${url}`);
-  return res.text();
+}
+
+async function fetchText(url, extraHeaders = {}) {
+  const res = await httpGet(url, {
+    headers: { 'User-Agent': 'Mozilla/5.0', Referer: JWC + LIST_PATH, ...extraHeaders },
+  });
+  if (res.status < 200 || res.status >= 300) throw new Error(`HTTP ${res.status} @ ${url}`);
+  return res.body;
 }
 
 async function downloadXlsx(articleUrl, outPath) {
@@ -53,14 +77,14 @@ async function downloadXlsx(articleUrl, outPath) {
   const dl = /href="([^"]*download\.jsp[^"]*)"/.exec(article)?.[1];
   if (!dl) throw new Error(`文章页 ${articleUrl} 里没有 download.jsp 附件链接，表样可能改版，人工看一眼`);
   const dlUrl = new URL(dl, articleUrl).href;
-  const res = await fetch(dlUrl, {
+  const res = await httpGet(dlUrl, {
     headers: { 'User-Agent': 'Mozilla/5.0', Referer: articleUrl },
-    redirect: 'follow',
-    signal: AbortSignal.timeout(120_000),
+    timeout: 120_000,
+    binary: true,
   });
-  const type = res.headers.get('content-type') ?? '';
-  if (!res.ok) throw new Error(`下载失败 HTTP ${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
+  const type = res.headers['content-type'] ?? '';
+  if (res.status < 200 || res.status >= 300) throw new Error(`下载失败 HTTP ${res.status}`);
+  const buf = res.body;
   if (buf.length < MIN_XLSX_BYTES) {
     throw new Error(`附件只有 ${buf.length} 字节（低于 ${MIN_XLSX_BYTES} 下限），拿到的是校验页而非 Excel，别把它当数据用`);
   }
